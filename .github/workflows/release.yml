@@ -1,0 +1,69 @@
+name: Release MyWallet BE
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.vars.outputs.VERSION }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: vars
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Login Docker Hub
+        run: echo "${{ vars.DOCKER_PASSWORD }}" | docker login -u "${{ vars.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            -t ${{ vars.DOCKER_USERNAME }}/mywallet:${{ steps.vars.outputs.VERSION }} \
+            .
+
+      - name: Push image
+        run: |
+          docker push ${{ vars.DOCKER_USERNAME }}/mywallet:${{ steps.vars.outputs.VERSION }}
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: STAGING
+
+    steps:
+      - name: Deploy to Staging via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            docker pull ${{ vars.DOCKER_USERNAME }}/mywallet:${{ needs.build.outputs.version }}
+            cd /path/to/staging-compose
+            docker compose down
+            IMAGE_TAG=${{ needs.build.outputs.version }} docker compose up -d
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: PRODUCTION
+
+    steps:
+      - name: Deploy to Production via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            docker pull ${{ vars.DOCKER_USERNAME }}/mywallet:${{ needs.build.outputs.version }}
+            cd /path/to/prod-compose
+            docker compose down
+            IMAGE_TAG=${{ needs.build.outputs.version }} docker compose up -d
