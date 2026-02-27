@@ -58,7 +58,7 @@ jobs:
 
   deploy-production:
     if: "!contains(github.ref_name, '-rc')"
-    needs: [build, deploy-staging]
+    needs: [build]
     runs-on: ubuntu-latest
     environment: PRODUCTION
 
