@@ -51,7 +51,8 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-staging
             docker compose down
-            IMAGE_TAG=${{ needs.build.outputs.version }} docker compose up -d
+            export IMAGE_TAG=${{ needs.build.outputs.version }}
+            docker compose up -d
 
   deploy-production:
     needs: deploy-staging
@@ -69,4 +70,5 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-production
             docker compose down
-            IMAGE_TAG=${{ needs.build.outputs.version }} docker compose up -d
+            export IMAGE_TAG=${{ needs.build.outputs.version }}
+            docker compose up -d
