@@ -3,7 +3,7 @@ name: Release MyWallet BE
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
 
 jobs:
   build:
@@ -36,6 +36,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/mywallet:${{ steps.vars.outputs.VERSION }}
 
   deploy-staging:
+    if: contains(github.ref_name, '-rc')
     needs: build
     runs-on: ubuntu-latest
     environment: STAGING
@@ -55,11 +56,26 @@ jobs:
             docker compose up -d
 
   deploy-production:
+    if: "!contains(github.ref_name, '-rc')"
     needs: [build, deploy-staging]
     runs-on: ubuntu-latest
     environment: PRODUCTION
 
     steps:
+      - name: Check if RC exists
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          BASE_VERSION=${VERSION%%-*}
+
+          echo "Checking RC for $BASE_VERSION"
+
+          if ! git ls-remote --tags origin | grep -q "refs/tags/${BASE_VERSION}-rc"; then
+            echo "❌ No RC tag found for ${BASE_VERSION}"
+            exit 1
+          fi
+
+          echo "✅ RC exists. Continue deploying."
+
       - name: Deploy to Production via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
