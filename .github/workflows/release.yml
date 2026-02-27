@@ -63,6 +63,10 @@ jobs:
     environment: PRODUCTION
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check if RC exists
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
@@ -70,12 +74,16 @@ jobs:
 
           echo "Checking RC for $BASE_VERSION"
 
-          if ! git ls-remote --tags origin | grep -q "refs/tags/${BASE_VERSION}-rc"; then
+          RC_TAGS=$(git tag -l "${BASE_VERSION}-rc*")
+
+          if [ -z "$RC_TAGS" ]; then
             echo "❌ No RC tag found for ${BASE_VERSION}"
             exit 1
           fi
 
-          echo "✅ RC exists. Continue deploying."
+           echo "Found RC tags:"
+           echo "$RC_TAGS"
+           echo "✅ RC exists. Continue deploying."
 
       - name: Deploy to Production via SSH
         uses: appleboy/ssh-action@v1.0.3
