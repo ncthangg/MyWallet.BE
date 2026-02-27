@@ -52,9 +52,9 @@ jobs:
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet-be:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-staging
-            docker compose down
             export IMAGE_TAG=${{ needs.build.outputs.version }}
-            docker compose up -d
+            docker compose up -d --pull always
+            docker image prune -f
 
   deploy-production:
     if: "!contains(github.ref_name, '-rc')"
@@ -87,6 +87,6 @@ jobs:
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet-be:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-production
-            docker compose down
             export IMAGE_TAG=${{ needs.build.outputs.version }}
-            docker compose up -d
+            docker compose up -d --pull always
+            docker image prune -a -f
