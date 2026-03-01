@@ -9,7 +9,6 @@ using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
-using System.Reflection.Emit;
 using System.Security.Claims;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 

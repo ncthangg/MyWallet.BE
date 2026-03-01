@@ -4,8 +4,17 @@ using MyWallet.API.Middlewares;
 using MyWallet.Application.DependencyInjection;
 using MyWallet.Infrastructure.DependencyInjection;
 using MyWallet.Infrastructure.Persistence.MyDbContext;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "HH:mm:ss ";
+    options.SingleLine = true;
+});
+Console.OutputEncoding = Encoding.UTF8;
 
 // Add services to the container.
 builder.Services.AddPresentation(builder.Configuration);
@@ -45,14 +54,18 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c => 
+    app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "My Portfolios API V1")
     );
 }
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-c.SwaggerEndpoint("/swagger/v1/swagger.json", "My Portfolios API V1")
-);
+
+if (app.Environment.IsStaging())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My Portfolios API V1")
+    );
+}
 
 app.UseHttpsRedirection();
 

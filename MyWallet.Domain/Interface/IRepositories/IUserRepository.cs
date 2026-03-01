@@ -12,6 +12,8 @@ namespace MyWallet.Domain.Interface.IRepositories
     {
         Task<User> GetByEmailAsync(string email);
         Task<bool> EmailExistsAsync(string email);
-        Task<User> GetWithAccountsAsync(Guid id);  // Load user + accounts
+        Task<User> GetWithAccountsAsync(Guid id);
+
+        Task<List<User>> GetUsersByIdsAsync(IEnumerable<Guid> userIds);
     }
 }

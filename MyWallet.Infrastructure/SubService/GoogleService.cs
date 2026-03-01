@@ -2,6 +2,7 @@
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Domain.Constants;
 using System.Text.Json;
 
 namespace MyWallet.Infrastructure.SubService
@@ -12,7 +13,7 @@ namespace MyWallet.Infrastructure.SubService
 
         public GoogleService(IConfiguration config)
         {
-            _allowedOrigins = config.GetSection("Auth:AllowedOrigins").Get<string[]>()
+            _allowedOrigins = config.GetSection(ConfigOrigins.AllowedOrigins).Get<string[]>()
                             ?? [];
         }
 
