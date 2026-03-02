@@ -77,7 +77,11 @@ if (app.Environment.IsStaging())
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "My Portfolios API V1")
     );
 }
-app.UseForwardedHeaders();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseHttpsRedirection();
 
