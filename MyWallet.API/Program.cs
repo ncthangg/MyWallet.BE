@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.HttpOverrides;
+﻿using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using MyWallet.API.DependencyInjection;
 using MyWallet.API.Middlewares;
@@ -8,16 +8,6 @@ using MyWallet.Infrastructure.Persistence.MyDbContext;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                ForwardedHeaders.XForwardedProto |
-                                ForwardedHeaders.XForwardedHost |
-                                ForwardedHeaders.XForwardedPrefix;
-    options.AllowedHosts.Clear();
-});
-
 
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(options =>
@@ -78,10 +68,19 @@ if (app.Environment.IsStaging())
     );
 }
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+var forwardOptions = new ForwardedHeadersOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+    ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost
+};
+
+// 🔥 CỰC KỲ QUAN TRỌNG
+forwardOptions.KnownNetworks.Clear();
+forwardOptions.KnownProxies.Clear();
+
+app.UseForwardedHeaders(forwardOptions);
 
 app.UseHttpsRedirection();
 
