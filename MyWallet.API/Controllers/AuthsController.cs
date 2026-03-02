@@ -11,6 +11,7 @@ using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
 using Pipelines.Sockets.Unofficial.Buffers;
+using System.Configuration;
 
 namespace MyWallet.API.Controllers
 {
@@ -35,12 +36,45 @@ namespace MyWallet.API.Controllers
 
             try
             {
+                Console.WriteLine($"\n=== SignIn Called ===");
+                Console.WriteLine($"Origin: {origin}");
+                Console.WriteLine($"Request Host: {Request.Host}");
+                Console.WriteLine($"Request Scheme: {Request.Scheme}");
+
+                // ✅ Clear cookies
                 Response.Cookies.Delete("GoogleOAuthTemp");
                 Response.Cookies.Delete(".AspNetCore.Cookies");
 
+                // ✅ Get BaseUrl from config
+                var baseUrl = BuildBaseUrl(Request);
+
+                // ✅ Fallback if not configured
+                if (string.IsNullOrEmpty(baseUrl))
+                {
+                    var scheme = Request.Scheme;
+                    var host = Request.Host.Host;
+                    var port = "";
+
+                    if ((scheme == "https" && Request.Host.Port != 443) ||
+                        (scheme == "http" && Request.Host.Port != 80))
+                    {
+                        port = $":{Request.Host.Port}";
+                    }
+
+                    baseUrl = $"{scheme}://{host}{port}";
+                }
+
+                var callbackPath = "/api/auths/google-auth/callback";
+                var redirectUri = $"{baseUrl}{callbackPath}?origin={Uri.EscapeDataString(origin)}";
+
+                Console.WriteLine($"BaseUrl: {baseUrl}");
+                Console.WriteLine($"RedirectUri: {redirectUri}");
+                Console.WriteLine("====================\n");
+
                 var props = new AuthenticationProperties
                 {
-                    RedirectUri = $"/api/auths/google-auth/callback?origin={Uri.EscapeDataString(origin)}"
+                    RedirectUri = redirectUri,
+                    IsPersistent = false
                 };
 
                 return Challenge(props, GoogleDefaults.AuthenticationScheme);
@@ -132,6 +166,22 @@ namespace MyWallet.API.Controllers
                 Console.WriteLine($"Logout error: {ex.Message}");
                 return BadRequest(new { error = ex.Message });
             }
+        }
+
+        private string BuildBaseUrl(HttpRequest request)
+        {
+            var scheme = request.Scheme;  // http hoặc https
+            var host = request.Host.Host;  // domain (không có port)
+            var port = "";
+
+            // ✅ Chỉ thêm port nếu không phải standard port
+            if ((scheme == "https" && request.Host.Port != 443) ||
+                (scheme == "http" && request.Host.Port != 80))
+            {
+                port = $":{request.Host.Port}";
+            }
+
+            return $"{scheme}://{host}{port}";
         }
     }
 }
