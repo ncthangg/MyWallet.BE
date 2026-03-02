@@ -79,6 +79,11 @@ if (app.Environment.IsStaging())
 }
 app.UseForwardedHeaders();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
