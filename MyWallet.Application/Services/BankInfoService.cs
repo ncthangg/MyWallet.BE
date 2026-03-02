@@ -1,11 +1,15 @@
-﻿using MyWallet.Application.Contracts.IContext;
+﻿using MyWallet.Application.Common.Mapper;
+using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Request;
+using MyWallet.Application.DTOs.Response;
+using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
+using MyWallet.Domain.Helper;
+using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
-using System.Reflection.Emit;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
 namespace MyWallet.Application.Services
@@ -24,11 +28,39 @@ namespace MyWallet.Application.Services
             _idGenerator = idGenerator;
         }
 
+        public async Task<PagingVM<GetBankInfoRes>> GetsAsync(int pageNumber, int pageSize, bool? isActive, string? searchValue)
+        {
+            //var isAdmin = _userContext.IsAdmin();
+
+            //if (!isAdmin)
+            //{
+            //    throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            //}
+
+            // Sử dụng custom repository method cho join phức tạp
+            var (items, totalCount) = await _unitOfWork.BankInfos.GetBankInfosAsync(pageNumber,
+                                                                      pageSize,
+                                                                      isActive,
+                                                                      searchValue);
+
+            var userDict = await UserHelper.GetUserNameDictAsync((List<BankInfo>)items, _unitOfWork.Users);
+
+            var list = items.Select(p => BankInfoMapper.ToGetBankInfoRes(p, userDict)).ToList();
+
+            return new PagingVM<GetBankInfoRes>
+            {
+                List = list,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalItems = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+        }
         public async Task PostAsync(PostBankInfoReq req)
         {
-            Guid userId = _userContext.UserId
-                ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
-
+            //Guid userId = _userContext.UserId
+            //    ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
+            Guid userId = Guid.NewGuid();
             var bank = new BankInfo()
             {
                 BankCode = req.BankCode,
@@ -37,15 +69,16 @@ namespace MyWallet.Application.Services
                 BankName = req.BankName,
                 ShortName = req.ShortName,
                 LogoUrl = req.LogoUrl,
+                IsActive = req.IsActive,
             };
             bank.Initialize(_idGenerator.NewId(), userId);
 
             await _unitOfWork.BankInfos.AddAsync(bank);
         }
-        public async Task PutAsync(Guid id, PostBankInfoReq req)
+        public async Task PutAsync(Guid id, PutBankInfoReq req)
         {
-            Guid userId = _userContext.UserId
-                ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
+            //Guid userId = _userContext.UserId
+            //    ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
 
             var oldItem = await _unitOfWork.BankInfos.GetByIdAsync(id)
                ?? throw new ApplicationException(ErrorCode.NotFound, ErrorMessages.EntityNotFound);
@@ -57,7 +90,7 @@ namespace MyWallet.Application.Services
             oldItem.ShortName = req.ShortName;
             oldItem.LogoUrl = req.LogoUrl;
             oldItem.IsActive = req.IsActive;
-            oldItem.SetUpdated(userId);
+            //oldItem.SetUpdated(userId);
 
             await _unitOfWork.BankInfos.UpdateAsync(oldItem);
         }

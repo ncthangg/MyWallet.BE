@@ -194,6 +194,26 @@ namespace MyWallet.Infrastructure.Persistence.Repositories.Base
             }
         }
 
+        protected async Task<(IEnumerable<T>, int)> QueryPagedAsync<T>(
+            string sql,
+            object parameters = null)
+        {
+            using (var connection = _connectionFactory.CreateConnection())
+            {
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+
+                using var multi = await connection.QueryMultipleAsync(sql, parameters);
+
+                var items = await multi.ReadAsync<T>();
+                var total = await multi.ReadSingleAsync<int>();
+
+                return (items, total);
+            }
+        }
+
         /// <summary>
         /// Execute command (INSERT, UPDATE, DELETE)
         /// ⚡ SAFE - Parametrized automatically

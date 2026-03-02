@@ -62,7 +62,7 @@ namespace MyWallet.Infrastructure.DependencyInjection
         }
         private static void AddConfig(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<TokenConfiguration>(configuration.GetSection("JWT"));
+            services.Configure<TokenConfiguration>(configuration.GetSection(Jwt.JwtConst));
             services.AddScoped<ITokenConfiguration>(sp => sp.GetRequiredService<IOptions<TokenConfiguration>>().Value);
         }
         private static IServiceCollection ConfigRedis(this IServiceCollection services, IConfiguration configuration)

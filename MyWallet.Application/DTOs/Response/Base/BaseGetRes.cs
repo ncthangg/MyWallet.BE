@@ -8,7 +8,7 @@ namespace MyWallet.Application.DTOs.Response.Base
 {
     public class BaseGetVM
     {
-        public string Id { get; set; } = string.Empty;
+        public Guid Id { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }

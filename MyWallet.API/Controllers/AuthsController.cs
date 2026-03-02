@@ -1,13 +1,16 @@
 ﻿using Azure.Core;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
+using Pipelines.Sockets.Unofficial.Buffers;
 
 namespace MyWallet.API.Controllers
 {
@@ -24,42 +27,78 @@ namespace MyWallet.API.Controllers
         }
 
         [HttpGet("google-auth/signin")]
+        [AllowAnonymous]
         public IActionResult SignIn([FromQuery] string origin)
         {
             if (string.IsNullOrWhiteSpace(origin))
                 return BadRequest("Origin is required");
 
-            var props = new AuthenticationProperties
+            try
             {
-                RedirectUri = Url.Action(nameof(SignInGoogle), "auths",
-                                          new { origin },
-                                          Request.Scheme)
-            };
+                Response.Cookies.Delete("GoogleOAuthTemp");
+                Response.Cookies.Delete(".AspNetCore.Cookies");
 
-            return Challenge(props, GoogleDefaults.AuthenticationScheme);
+                var props = new AuthenticationProperties
+                {
+                    RedirectUri = $"/api/auths/google-auth/callback?origin={Uri.EscapeDataString(origin)}"
+                };
+
+                return Challenge(props, GoogleDefaults.AuthenticationScheme);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return BadRequest(new
+                {
+                    error = ex.Message
+                });
+            }
         }
-        
-        [HttpGet("google-auth/signin-google")]
-        public async Task<IActionResult> SignInGoogle(string origin)
+
+        [HttpGet("google-auth/callback")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GoogleCallback([FromQuery] string origin)
         {
             if (string.IsNullOrWhiteSpace(origin))
                 return BadRequest("Origin is required");
 
-            SignInGoogleRes result = await _authService.SignInGoogle(HttpContext);
+            try
+            {
+                // ✅ Check if authentication succeeded
+                var result = await HttpContext.AuthenticateAsync("OAuthTemp");
 
-            var response = new BaseResponseModel<SignInGoogleRes>(
-                SuccessCode.Success,
-                result,
-                "Đăng nhập Google thành công!"
-            );
+                if (!result.Succeeded)
+                {
+                    Console.WriteLine($"Authentication failed: {result.Failure?.Message}");
+                    return Redirect($"{origin}?error=auth_failed");
+                }
 
-            var html = _googleService.BuildSuccessHtml(response, origin);
+                Console.WriteLine($"Authentication succeeded. Processing user...");
 
-            return Content(html, "text/html");
+                // ✅ Now process the authenticated user
+                var signInResult = await _authService.SignInGoogle(HttpContext);
+
+                var response = new BaseResponseModel<SignInGoogleRes>(
+                    SuccessCode.Success,
+                    signInResult,
+                    "Đăng nhập Google thành công!"
+                );
+
+                var html = _googleService.BuildSuccessHtml(response, origin);
+
+                Console.WriteLine($"Returning success HTML");
+
+                return Content(html, "text/html");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SignInGoogle error: {ex.Message}\n{ex.StackTrace}");
+                return Redirect($"{origin}?error={Uri.EscapeDataString(ex.Message)}");
+            }
         }
 
-        [Authorize]
         [HttpGet("me")]
+        [Authorize]
         public async Task<IActionResult> Me()
         {
             GetUserRes result = await _authService.Me();
@@ -68,6 +107,31 @@ namespace MyWallet.API.Controllers
                                message: null,
                                data: result
                                ));
+        }
+
+        [HttpPost("signout")]
+        [Authorize]
+        public async Task<IActionResult> SignOut()
+        {
+            try
+            {
+                // ✅ Logout from OAuthTemp cookie
+                await HttpContext.SignOutAsync("OAuthTemp");
+
+                // ✅ Clear all cookies related to Google
+                Response.Cookies.Delete("GoogleOAuthTemp");
+                Response.Cookies.Delete(".AspNetCore.Cookies");
+
+                return Ok(new BaseResponseModel<string>(code: SuccessCode.Success,
+                                                        data: null,
+                                                        message: "Đăng xuất thành công!"
+                                                        ));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Logout error: {ex.Message}");
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 }

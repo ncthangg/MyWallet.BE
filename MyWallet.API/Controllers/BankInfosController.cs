@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Request;
+using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Application.Services;
 using MyWallet.Domain.Constants;
@@ -19,6 +20,16 @@ namespace MyWallet.API.Controllers
         {
             _bankInfoService = bankInfoService;
         }
+        [HttpGet]
+        public async Task<IActionResult> Get(int pageNumber = 1, int pageSize = 10, bool? isActive = true, string? searchValue = null)
+        {
+            PagingVM<GetBankInfoRes> result = await _bankInfoService.GetsAsync(pageNumber, pageSize, isActive, searchValue);
+
+            return Ok(new BaseResponseModel<PagingVM<GetBankInfoRes>>(
+                code: SuccessCode.Success,
+                data: result,
+                message: null));
+        }
         [HttpPost]
         public async Task<IActionResult> Post([FromForm] PostBankInfoReq request)
         {
@@ -29,7 +40,7 @@ namespace MyWallet.API.Controllers
                 message: SuccessMessages.CreateSuccess));
         }
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(Guid id, [FromForm] PostBankInfoReq request)
+        public async Task<IActionResult> Put(Guid id, [FromForm] PutBankInfoReq request)
         {
             await _bankInfoService.PutAsync(id, request);
             return Ok(new BaseResponseModel<string>(

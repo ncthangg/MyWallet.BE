@@ -12,6 +12,7 @@ namespace MyWallet.Domain.Constants
     }
     public static class Jwt
     {
+        public const string JwtConst = "JWT";
         public const string SecretKeyConfigPath = "JWT:SecretKey";
         public const string IssuerConfigPath = "JWT:Issuer";
         public const string AudienceConfigPath = "JWT:Audience";

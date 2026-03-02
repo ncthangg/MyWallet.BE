@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -81,32 +82,66 @@ namespace MyWallet.API.DependencyInjection
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = "OAuthTemp";
             })
-            .AddCookie(Google.OAuthTempConfigPath!, o =>
+            .AddCookie("OAuthTemp", o =>
             {
                 o.Cookie.SameSite = SameSiteMode.None;
                 o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                o.Cookie.HttpOnly = true;
+                o.Cookie.Name = "GoogleOAuthTemp";
+                o.LoginPath = "/api/auths/google-auth/signin"; 
+                o.LogoutPath = "/api/auths/signout";
             })
             .AddGoogle(o =>
             {
                 o.ClientId = configuration.GetValue<string>(Google.ClientIdConfigPath)!;
                 o.ClientSecret = configuration.GetValue<string>(Google.ClientSecretConfigPath)!;
 
-                o.SignInScheme = Google.OAuthTempConfigPath;
+                o.SignInScheme = "OAuthTemp";
                 o.SaveTokens = true;
 
-                //o.CallbackPath = "/api/auths/google-auth/signin-google";
+                o.CallbackPath = "/signin-google";
                 o.ClaimActions.MapJsonKey("urn:google:picture", "picture");
 
-                o.Events.OnRedirectToAuthorizationEndpoint = context =>
+                o.AccessType = "offline";  // Request refresh token
+
+                o.Events = new OAuthEvents
                 {
-                    var redirectUri = context.RedirectUri;
+                    OnRedirectToAuthorizationEndpoint = context =>
+                    {
+                        var redirectUri = context.RedirectUri;
 
-                    // nếu Google chưa có prompt thì thêm vào
-                    if (!redirectUri.Contains("prompt="))
-                        redirectUri += "&prompt=select_account";
+                        // ✅ CRITICAL: Always add prompt=select_account
+                        // This FORCES Google to show account selection
+                        if (!redirectUri.Contains("prompt="))
+                        {
+                            redirectUri += "&prompt=select_account";
+                        }
+                        else
+                        {
+                            // ✅ If prompt exists, replace it
+                            redirectUri = System.Text.RegularExpressions.Regex.Replace(
+                                redirectUri,
+                                @"prompt=[^&]*",
+                                "prompt=select_account"
+                            );
+                        }
 
-                    context.Response.Redirect(redirectUri);
-                    return Task.CompletedTask;
+                        // ✅ Add login_hint=null to clear cached user
+                        if (!redirectUri.Contains("login_hint="))
+                        {
+                            redirectUri += "&login_hint=&account=&hd=&include_granted_scopes=true";
+                        }
+
+                        context.Response.Redirect(redirectUri);
+                        return Task.CompletedTask;
+                    },
+                    OnRemoteFailure = context =>
+                    {
+                        Console.WriteLine($"Google Auth Error: {context.Failure?.Message}");
+                        context.Response.Redirect("/");
+                        context.HandleResponse();
+                        return Task.CompletedTask;
+                    }
                 };
             })
             .AddJwtBearer(options =>

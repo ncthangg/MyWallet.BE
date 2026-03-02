@@ -19,7 +19,7 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
 
             const string sql = @"
                 SELECT 
-                    Id, Email, FullName, GoogleId, SecurityStamp, AvatarUrl, CreatedAt, UpdatedAt
+                    Id, Email, FullName, GoogleId, SecurityStamp, PictureUrl, CreatedAt, UpdatedAt
                 FROM Users
                 WHERE Email = @Email
             ";
@@ -46,6 +46,12 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             const string sql = "SELECT * FROM Users WHERE Id = @UserId";
 
             return await QuerySingleAsync<User>(sql, new { UserId = id });
+        }
+        public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<Guid> userIds)
+        {
+            const string sql = "SELECT Id, FullName FROM Users WHERE Id IN @Ids";
+
+            return await QuerySingleAsync<List<User>>(sql, new { Ids = userIds });
         }
     }
 }
