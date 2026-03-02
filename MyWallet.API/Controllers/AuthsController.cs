@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using MyWallet.Application.Common.Extensions;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Response;
@@ -40,34 +41,17 @@ namespace MyWallet.API.Controllers
                 Console.WriteLine($"Origin: {origin}");
                 Console.WriteLine($"Request Host: {Request.Host}");
                 Console.WriteLine($"Request Scheme: {Request.Scheme}");
+                Console.WriteLine($"X-Forwarded-Proto: {Request.Headers["X-Forwarded-Proto"]}");
+                Console.WriteLine($"X-Forwarded-Host: {Request.Headers["X-Forwarded-Host"]}");
 
                 // ✅ Clear cookies
                 Response.Cookies.Delete("GoogleOAuthTemp");
                 Response.Cookies.Delete(".AspNetCore.Cookies");
 
-                // ✅ Get BaseUrl from config
-                var baseUrl = BuildBaseUrl(Request);
+                // ✅ Use extension method (single source of truth)
+                var redirectUri = Request.GetCallbackUrl(origin);
 
-                // ✅ Fallback if not configured
-                if (string.IsNullOrEmpty(baseUrl))
-                {
-                    var scheme = Request.Scheme;
-                    var host = Request.Host.Host;
-                    var port = "";
-
-                    if ((scheme == "https" && Request.Host.Port != 443) ||
-                        (scheme == "http" && Request.Host.Port != 80))
-                    {
-                        port = $":{Request.Host.Port}";
-                    }
-
-                    baseUrl = $"{scheme}://{host}{port}";
-                }
-
-                var callbackPath = "/api/auths/google-auth/callback";
-                var redirectUri = $"{baseUrl}{callbackPath}?origin={Uri.EscapeDataString(origin)}";
-
-                Console.WriteLine($"BaseUrl: {baseUrl}");
+                Console.WriteLine($"BaseUrl: {Request.GetBaseUrl()}");
                 Console.WriteLine($"RedirectUri: {redirectUri}");
                 Console.WriteLine("====================\n");
 
@@ -170,18 +154,32 @@ namespace MyWallet.API.Controllers
 
         private string BuildBaseUrl(HttpRequest request)
         {
-            var scheme = request.Scheme;  // http hoặc https
-            var host = request.Host.Host;  // domain (không có port)
-            var port = "";
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
 
-            // ✅ Chỉ thêm port nếu không phải standard port
-            if ((scheme == "https" && request.Host.Port != 443) ||
-                (scheme == "http" && request.Host.Port != 80))
+            var scheme = request.Scheme;
+            var host = request.Host.Host;
+            var port = request.Host.Port;
+
+            // ✅ FIX: Check HasValue before using port
+            var portString = "";
+            if (port.HasValue)
             {
-                port = $":{request.Host.Port}";
+                var portValue = port.Value;
+                var isStandardPort = (scheme == "https" && portValue == 443) ||
+                                     (scheme == "http" && portValue == 80);
+
+                if (!isStandardPort)
+                {
+                    portString = $":{portValue}";
+                }
             }
 
-            return $"{scheme}://{host}{port}";
+            var baseUrl = $"{scheme}://{host}{portString}";
+
+            Console.WriteLine($"[BuildBaseUrl] Scheme: {scheme}, Host: {host}, Port: {port}, Result: {baseUrl}");
+
+            return baseUrl;
         }
     }
 }
