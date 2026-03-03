@@ -1,15 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using MyWallet.Application.Common;
-using MyWallet.Application.Common.Context;
-using MyWallet.Application.Contracts.IConfigs;
-using MyWallet.Application.Contracts.IContext;
+﻿using Microsoft.Extensions.DependencyInjection;
 using MyWallet.Application.Contracts.IServices;
-using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.Services;
-using MyWallet.Domain.Constants;
-using StackExchange.Redis;
 
 namespace MyWallet.Application.DependencyInjection
 {
@@ -23,6 +14,9 @@ namespace MyWallet.Application.DependencyInjection
         {
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<IUserRoleService, UserRoleService>();
+
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IQRHistoryService, QRHistoryService>();
             services.AddScoped<IBankInfoService, BankInfoService>();

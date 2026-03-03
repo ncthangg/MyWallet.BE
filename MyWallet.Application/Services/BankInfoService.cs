@@ -8,7 +8,6 @@ using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
@@ -23,21 +22,12 @@ namespace MyWallet.Application.Services
         public BankInfoService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-            //_mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _userContext = userContext;
             _idGenerator = idGenerator;
         }
 
         public async Task<PagingVM<GetBankInfoRes>> GetsAsync(int pageNumber, int pageSize, bool? isActive, string? searchValue)
         {
-            //var isAdmin = _userContext.IsAdmin();
-
-            //if (!isAdmin)
-            //{
-            //    throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            //}
-
-            // Sử dụng custom repository method cho join phức tạp
             var (items, totalCount) = await _unitOfWork.BankInfos.GetBankInfosAsync(pageNumber,
                                                                       pageSize,
                                                                       isActive,
@@ -56,11 +46,30 @@ namespace MyWallet.Application.Services
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
             };
         }
+        public async Task<GetBankInfoRes> GetByIdAsync(Guid id)
+        {
+            if (id == Guid.Empty)
+                throw new ApplicationException(ErrorCode.ValidationError, "Invalid bank ID");
+
+            var bank = await _unitOfWork.BankInfos.GetByIdAsync(id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Bank {id} not found");
+
+            var userDict = await UserHelper.GetUserNameDictAsync(bank, _unitOfWork.Users);
+
+            return BankInfoMapper.ToGetBankInfoRes(bank, userDict);
+        }
         public async Task PostAsync(PostBankInfoReq req)
         {
-            //Guid userId = _userContext.UserId
-            //    ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
-            Guid userId = Guid.NewGuid();
+            var isAdmin = _userContext.IsAdmin();
+
+            if (!isAdmin)
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
+
+            Guid userId = _userContext.UserId
+                ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
+
             var bank = new BankInfo()
             {
                 BankCode = req.BankCode,
@@ -77,8 +86,18 @@ namespace MyWallet.Application.Services
         }
         public async Task PutAsync(Guid id, PutBankInfoReq req)
         {
-            //Guid userId = _userContext.UserId
-            //    ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
+            var isAdmin = _userContext.IsAdmin();
+
+            if (!isAdmin)
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
+
+            Guid userId = _userContext.UserId
+                ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
+
+            if (id == Guid.Empty)
+                throw new ApplicationException(ErrorCode.ValidationError, "Invalid bank ID");
 
             var oldItem = await _unitOfWork.BankInfos.GetByIdAsync(id)
                ?? throw new ApplicationException(ErrorCode.NotFound, ErrorMessages.EntityNotFound);
@@ -90,9 +109,26 @@ namespace MyWallet.Application.Services
             oldItem.ShortName = req.ShortName;
             oldItem.LogoUrl = req.LogoUrl;
             oldItem.IsActive = req.IsActive;
-            //oldItem.SetUpdated(userId);
+            oldItem.SetUpdated(userId);
 
             await _unitOfWork.BankInfos.UpdateAsync(oldItem);
+        }
+        public async Task DeleteAsync(Guid id)
+        {
+            var isAdmin = _userContext.IsAdmin();
+
+            if (!isAdmin)
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
+
+            if (id == Guid.Empty)
+                throw new ApplicationException(ErrorCode.ValidationError, "Invalid bank ID");
+
+            _ = await _unitOfWork.BankInfos.GetByIdAsync(id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Bank {id} not found");
+
+            await _unitOfWork.BankInfos.DeleteAsync(id);
         }
     }
 }

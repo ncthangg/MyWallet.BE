@@ -77,7 +77,6 @@ namespace MyWallet.Application.Services
             if (string.IsNullOrWhiteSpace(email))
                 throw new ApplicationException(ErrorCode.BadRequest, "Không tìm thấy email Google!");
 
-            // 1. Check if user exists
             User? user = await _userRepository.GetByEmailAsync(email);
 
             if (user == null)
@@ -115,7 +114,7 @@ namespace MyWallet.Application.Services
                 TokenRes = jwt,
                 RoleRes = new()
                 {
-                    RoleName = "user"
+                    RoleName = "admin"
                 }
             };
         }
