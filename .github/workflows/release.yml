@@ -53,7 +53,8 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet-be:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-staging
             export IMAGE_TAG=${{ needs.build.outputs.version }}
-            docker compose up -d --pull always
+            docker compose --profile migrate run --rm migrator || exit 1
+            docker compose up -d mywallet-be-staging
             docker image prune -f
 
   deploy-production:
@@ -96,5 +97,6 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/mywallet-be:${{ needs.build.outputs.version }}
             cd /opt/mywallet-be-production
             export IMAGE_TAG=${{ needs.build.outputs.version }}
-            docker compose up -d --pull always
+            docker compose --profile migrate run --rm migrator || exit 1
+            docker compose up -d mywallet-be-production
             docker image prune -a -f
