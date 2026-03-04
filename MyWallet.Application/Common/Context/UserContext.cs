@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Domain.Constants.Enum;
+using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
 using System.Security.Claims;
 
@@ -21,8 +22,8 @@ namespace MyWallet.Application.Common.Context
             }
         }
 
-        public string? Role =>
-            HttpContext?.User?.FindFirst(ClaimTypes.Role)?.Value;
+        public IEnumerable<string> RoleNames => HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value)
+                                                 ?? Enumerable.Empty<string>();
 
         public string? SecurityStamp =>
             HttpContext?.User?.FindFirst("security-stamp")?.Value;
@@ -136,12 +137,13 @@ namespace MyWallet.Application.Common.Context
 
         public bool IsAuthenticated()
         {
-            return !UserId.HasValue;
+            return UserId.HasValue;
         }
 
         public bool IsAdmin()
         {
-            return IsAuthenticated() && Role == RoleCategory.Admin.ToString().ToLower();
+            return IsAuthenticated() && RoleNames.Any(r => Enum.TryParse<RoleCategory>(r, true, out var roleEnum)
+                                                          && roleEnum == RoleCategory.Admin);
         }
     }
 }

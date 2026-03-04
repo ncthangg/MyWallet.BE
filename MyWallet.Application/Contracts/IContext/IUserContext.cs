@@ -10,7 +10,7 @@
         /// <summary>
         /// Gets the current user's role from JWT claims
         /// </summary>
-        string? Role { get; }
+        IEnumerable<string> RoleNames { get; }
 
         /// <summary>
         /// Gets the client's IP address
