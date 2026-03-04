@@ -10,5 +10,6 @@ namespace MyWallet.Domain.Interface.IRepositories
 {
     public interface IRoleRepository : IRepository<Role>
     {
+        Task<Role?> GetByNameAsync(string roleName);
     }
 }

@@ -31,7 +31,7 @@ namespace MyWallet.Application.Services
 
             var userDict = await UserHelper.GetUserNameDictAsync<Role>(roles.ToList(), _unitOfWork.Users);
 
-            return roles.Select(p => RoleMapper.ToGetRoleRes(p, userDict)).ToList(); ;
+            return roles.Select(p => RoleMapper.ToGetRoleRes(p, userDict)).ToList();
         }
         public async Task<GetRoleRes> GetByIdAsync(Guid id)
         {
@@ -88,7 +88,7 @@ namespace MyWallet.Application.Services
             var role = await _unitOfWork.Roles.GetByIdAsync(id)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Role {id} not found");
 
-            role.Name = req.Name.Trim();
+            role.Name = req.Name.Trim().ToLower();
             role.NameUpperCase = req.Name.Trim().ToUpper();
             role.SetUpdated(userId);
 

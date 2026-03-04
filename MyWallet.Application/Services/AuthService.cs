@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using MyWallet.Application.Common.Mapper;
 using MyWallet.Application.Contracts.IConfigs;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Domain.Constants;
+using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
@@ -57,7 +59,7 @@ namespace MyWallet.Application.Services
                 FullName = user.FullName,
                 GoogleId = user.GoogleId,
                 PictureUrl = user.PictureUrl,
-                SecurityStamp = user.SecurityStamp ?? ""
+                SecurityStamp = user.SecurityStamp ?? ""                                                    
             };
         }
         public async Task<SignInGoogleRes> SignInGoogle(HttpContext context)
@@ -92,13 +94,20 @@ namespace MyWallet.Application.Services
                 };
                 var userId = _idGenerator.NewId();
                 user.Initialize(userId, userId);
-
                 await _unitOfWork.Users.AddAsync(user);
+
+                var rolesExisted = await _unitOfWork.Roles.GetByNameAsync(RoleCategory.User.ToString())
+                    ?? throw new ApplicationException(ErrorCode.NotFound, "Default role not found");
+                await _unitOfWork.UserRoles.AddUserToRoleAsync(_idGenerator.NewId(), user.Id, rolesExisted.Id);
+
                 await _unitOfWork.CommitAsync();
             }
 
+            var roles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(user.Id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, "Role of user not found");
+
             // 4. Generate JWT for this user
-            TokenRes jwt = await _tokenService.GenerateTokens(user.Id, null);
+            TokenRes jwt = await _tokenService.GenerateTokens(user.Id, roles, null);
 
             return new SignInGoogleRes
             {
@@ -112,10 +121,7 @@ namespace MyWallet.Application.Services
                     PictureUrl = user.PictureUrl,
                 },
                 TokenRes = jwt,
-                RoleRes = new()
-                {
-                    RoleName = "admin"
-                }
+                RoleRes = roles.Select(p => RoleMapper.ToGetRoleRes(p)).ToList()
             };
         }
     }

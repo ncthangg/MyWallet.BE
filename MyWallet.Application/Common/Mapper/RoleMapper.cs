@@ -28,6 +28,15 @@ namespace MyWallet.Application.Common.Mapper
                 DeletedByName = GetUserName(u.DeletedBy, userDict),
             };
         }
+        public static GetRoleRes ToGetRoleRes(Role u)
+        {
+            return new GetRoleRes
+            {
+                Id = u.Id,
+                Name = u.Name,
+                NameUpperCase = u.NameUpperCase,
+            };
+        }
         private static string? GetUserName(
                 Guid? userId,
                 IReadOnlyDictionary<Guid, string> dict)
