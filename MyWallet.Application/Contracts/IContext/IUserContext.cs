@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MyWallet.Application.Contracts.IContext
+﻿namespace MyWallet.Application.Contracts.IContext
 {
     public interface IUserContext
     {
@@ -16,7 +10,7 @@ namespace MyWallet.Application.Contracts.IContext
         /// <summary>
         /// Gets the current user's role from JWT claims
         /// </summary>
-        string? Role { get; }
+        IEnumerable<string> RoleNames { get; }
 
         /// <summary>
         /// Gets the client's IP address

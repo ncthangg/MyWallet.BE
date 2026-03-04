@@ -1,5 +1,4 @@
-﻿using MyWallet.Domain.Interface.IDbContext;
-using MyWallet.Domain.Interface.IRepositories;
+﻿using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.Repositories;
 using System.Data;
@@ -15,7 +14,9 @@ namespace MyWallet.Infrastructure.Persistence.UnitOfWork
 
         private IUserRepository _userRepository;
         private IAccountRepository _accountRepository;
+        private IRoleRepository _roleRepository;
         private IUserTokenRepository _userTokenRepository;
+        private IUserRoleRepository _userRoleRepository;
         private IQRHistoryRepository _qrHistoryRepository;
         private IBankInfoRepository _bankInfoRepository;
 
@@ -29,9 +30,13 @@ namespace MyWallet.Infrastructure.Persistence.UnitOfWork
 
         public IAccountRepository Accounts
             => _accountRepository ??= new AccountRepository(_connectionFactory);
+        public IRoleRepository Roles
+            => _roleRepository ??= new RoleRepository(_connectionFactory);
 
         public IUserTokenRepository UserTokens
             => _userTokenRepository ??= new UserTokenRepository(_connectionFactory);
+        public IUserRoleRepository UserRoles
+            => _userRoleRepository ??= new UserRoleRepository(_connectionFactory);
 
         public IQRHistoryRepository QRHistories
             => _qrHistoryRepository ??= new QRHistoryRepository(_connectionFactory);

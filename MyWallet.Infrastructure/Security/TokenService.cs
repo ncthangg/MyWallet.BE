@@ -4,6 +4,7 @@ using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Domain.Constants;
+using MyWallet.Domain.Entities;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -20,7 +21,7 @@ namespace MyWallet.Infrastructure.Security
         private readonly IUserContext _userContext;
 
         public TokenService(IUnitOfWork unitOfWork,
-            ITokenConfiguration tokenConfig, 
+            ITokenConfiguration tokenConfig,
             IUserContext userContext)
         {
             _unitOfWork = unitOfWork;
@@ -29,7 +30,7 @@ namespace MyWallet.Infrastructure.Security
             _userContext = userContext;
         }
 
-        public async Task<TokenRes> GenerateTokens(Guid userId, DateTime? expiredTime)
+        public async Task<TokenRes> GenerateTokens(Guid userId, IEnumerable<Role> roles, DateTime? expiredTime)
         {
             var now = DateTime.UtcNow;
 
@@ -40,6 +41,11 @@ namespace MyWallet.Infrastructure.Security
                 new("id", userId.ToString()),
                 new("security_stamp", user.SecurityStamp.ToString())
             };
+
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role.Name.Trim().ToLower()));
+            }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_tokenConfig.SecretKey));
 
@@ -74,6 +80,9 @@ namespace MyWallet.Infrastructure.Security
             var userId = _userContext.UserId
                 ?? throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.UserIDNotFoundInTheContext);
 
+            var roles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(userId)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Role of {userId} not found");
+
             DateTime expiredTime;
             try
             {
@@ -85,7 +94,7 @@ namespace MyWallet.Infrastructure.Security
             }
 
             var userToken = await _unitOfWork.UserTokens.GetByIdAsync(userId);
-            TokenRes tokensVM = await GenerateTokens(userId, expiredTime);
+            TokenRes tokensVM = await GenerateTokens(userId, roles, expiredTime);
             if (userToken != null)
             {
                 userToken.RefreshToken = tokensVM.RefreshToken;
@@ -105,7 +114,7 @@ namespace MyWallet.Infrastructure.Security
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid token format.");
 
             var jwtToken = handler.ReadJwtToken(oldRefreshToken);
-            var expiredClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp) 
+            var expiredClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)
                 ?? throw new ApplicationException(ErrorCode.ValidationError, "Token does not contain expiry information.");
             var expiredTimeUnix = long.Parse(expiredClaim.Value);
             var expiredTime = DateTimeOffset.FromUnixTimeSeconds(expiredTimeUnix).UtcDateTime;

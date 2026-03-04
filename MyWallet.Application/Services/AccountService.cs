@@ -8,7 +8,6 @@ using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
@@ -23,24 +22,8 @@ namespace MyWallet.Application.Services
         public AccountService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-            //_mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _userContext = userContext;
             _idGenerator = idGenerator;
-        }
-
-        public async Task<GetAccountRes> GetByIdAsync(Guid accountId)
-        {
-            if (accountId == Guid.Empty)
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
-
-            var account = await _unitOfWork.Accounts.GetByIdAsync(accountId);
-
-            if (account == null)
-                throw new ApplicationException(ErrorCode.NotFound, $"Account {accountId} not found");
-
-            var userDict = await UserHelper.GetUserNameDictAsync(account, _unitOfWork.Users);
-
-            return AccountMapper.ToGetAccountRes(account, userDict);
         }
 
         public async Task<PagingVM<GetAccountRes>> GetUserAccountsAsync(Guid userId, int pageNumber = 1, int pageSize = 10, bool? isActive = true)
@@ -66,6 +49,19 @@ namespace MyWallet.Application.Services
             };
         }
 
+        public async Task<GetAccountRes> GetByIdAsync(Guid id)
+        {
+            if (id == Guid.Empty)
+                throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
+
+            var account = await _unitOfWork.Accounts.GetByIdAsync(id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
+
+            var userDict = await UserHelper.GetUserNameDictAsync(account, _unitOfWork.Users);
+
+            return AccountMapper.ToGetAccountRes(account, userDict);
+        }
+
         public async Task<Guid> PostAccountAsync(PostAccountReq request)
         {
             Guid userId = _userContext.UserId
@@ -81,7 +77,6 @@ namespace MyWallet.Application.Services
             if (exists)
                 throw new ApplicationException(ErrorCode.DuplicateEntry, "Account number already exists");
 
-            // Create entity
             var account = new Account
             {
                 UserId = userId,
@@ -96,26 +91,24 @@ namespace MyWallet.Application.Services
             };
             account.Initialize(_idGenerator.NewId(), userId);
 
-            // Validate domain entity
             if (!account.IsValidAccount())
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid account");
 
-            // Save
             await _unitOfWork.Accounts.AddAsync(account);
 
             return account.Id;
         }
 
-        public async Task PutAccountAsync(Guid accountId, PutAccountReq request)
+        public async Task PutAccountAsync(Guid id, PutAccountReq request)
         {
             Guid userId = _userContext.UserId
                 ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
 
-            if (accountId == Guid.Empty)
+            if (id == Guid.Empty)
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid account ID");
 
-            var account = await _unitOfWork.Accounts.GetByIdAsync(accountId)
-                ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {accountId} not found");
+            var account = await _unitOfWork.Accounts.GetByIdAsync(id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
 
             if (account.UserId != userId)
                 throw new ApplicationException(ErrorCode.Unauthorized, "Không thuộc quyền sở hữu của user");
@@ -123,12 +116,11 @@ namespace MyWallet.Application.Services
             bool exists = await _unitOfWork.Accounts.AccountNumberExistsAsync(
                 userId,
                 request.AccountNumber,
-                accountId
+                id
             );
-            if (exists) 
+            if (exists)
                 throw new ApplicationException(ErrorCode.DuplicateEntry, "Account number already exists");
 
-            // Update fields
             account.AccountNumber = request.AccountNumber.Trim();
             account.AccountHolder = request.AccountHolder.Trim();
             account.BankCode = request.BankCode.Trim();
@@ -136,23 +128,21 @@ namespace MyWallet.Application.Services
             account.AccountType = request.AccountType ?? account.AccountType;
             account.SetUpdated(userId);
 
-            // Validate
             if (!account.IsValidAccount())
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid account");
 
             await _unitOfWork.Accounts.UpdateAsync(account);
         }
 
-        public async Task DeleteAccountAsync(Guid accountId)
+        public async Task DeleteAccountAsync(Guid id)
         {
-            if (accountId == Guid.Empty)
+            if (id == Guid.Empty)
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid account ID");
 
-            var account = await _unitOfWork.Accounts.GetByIdAsync(accountId);
-            if (account == null)
-               throw new ApplicationException(ErrorCode.NotFound, $"Account {accountId} not found");
+            _ = await _unitOfWork.Accounts.GetByIdAsync(id)
+                ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
 
-            await _unitOfWork.Accounts.DeleteAsync(accountId);
+            await _unitOfWork.Accounts.DeleteAsync(id);
         }
     }
 }

@@ -8,7 +8,6 @@ using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Interface.IRepositories;
-using MyWallet.Domain.Interface.IRepositories.Base;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.MyDbContext;
 using MyWallet.Infrastructure.Persistence.Repositories;
@@ -40,16 +39,27 @@ namespace MyWallet.Infrastructure.DependencyInjection
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Register specific repositories
-            services.AddScoped<IUserRepository, UserRepository>();  
+            services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IAccountRepository, AccountRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
+
             services.AddScoped<IQRHistoryRepository, QRHistoryRepository>();
             services.AddScoped<IBankInfoRepository, BankInfoRepository>();
+            services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+            services.AddScoped<IUserTokenRepository, UserTokenRepository>();
         }
         private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<MyWalletDbContext>((sp, options) =>
             {
-                options.UseSqlServer(configuration.GetConnectionString(Database.DefaultConnection));
+                options.UseSqlServer(configuration.GetConnectionString(Database.DefaultConnection),
+                    sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorNumbersToAdd: null);
+                    });
             });
         }
         private static void AddSubServices(this IServiceCollection services)
@@ -57,7 +67,7 @@ namespace MyWallet.Infrastructure.DependencyInjection
             services.AddScoped<IUserContext, UserContext>();
 
             services.AddScoped<IGoogleService, GoogleService>();
-            services.AddScoped<ITokenService, TokenService>(); 
+            services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IIdGenerator, SqlServerIdGenerator>();
         }
         private static void AddConfig(this IServiceCollection services, IConfiguration configuration)

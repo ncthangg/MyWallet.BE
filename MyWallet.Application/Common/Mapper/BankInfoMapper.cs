@@ -1,17 +1,10 @@
 ﻿using MyWallet.Application.DTOs.Response;
 using MyWallet.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MyWallet.Application.Common.Mapper
 {
     public class BankInfoMapper
     {
-
         public static GetBankInfoRes ToGetBankInfoRes(BankInfo u, Dictionary<Guid, string>? userDict)
         {
             return new GetBankInfoRes
@@ -43,7 +36,5 @@ namespace MyWallet.Application.Common.Mapper
             if (userId == null || userId == Guid.Empty) { return null; }
             return dict.TryGetValue(userId.Value, out var name) ? name : null;
         }
-
-
     }
 }
