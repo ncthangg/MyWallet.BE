@@ -25,15 +25,13 @@ namespace MyWallet.Application.Services
         //private readonly IRedisService _redisService;
 
         private readonly ITokenService _tokenService;
-        private readonly IUserRepository _userRepository;
 
         public AuthService(IUnitOfWork unitOfWork,
             ITokenConfiguration tokenConfiguration,
             IUserContext userContext,
             IIdGenerator idGenerator,
             //IRedisService redisService,
-            ITokenService tokenService,
-            IUserRepository userRepository)
+            ITokenService tokenService)
         {
             _unitOfWork = unitOfWork;
             _tokenConfiguration = tokenConfiguration;
@@ -42,14 +40,13 @@ namespace MyWallet.Application.Services
             //_redisService = redisService;
 
             _tokenService = tokenService;
-            _userRepository = userRepository;
         }
         public async Task<GetUserRes> Me()
         {
             var userId = _userContext.UserId
                 ?? throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.UserIDNotFoundInTheContext);
 
-            User? user = await _userRepository.GetWithAccountsAsync(userId)
+            User? user = await _unitOfWork.Users.GetWithAccountsAsync(userId)
                       ?? throw new ApplicationException(ErrorCode.Unauthorized, "Tên người dùng này chưa có tài khoản! Vui lòng đăng ký!");
 
             return new GetUserRes
@@ -79,28 +76,38 @@ namespace MyWallet.Application.Services
             if (string.IsNullOrWhiteSpace(email))
                 throw new ApplicationException(ErrorCode.BadRequest, "Không tìm thấy email Google!");
              
-            User? user = await _userRepository.GetByEmailAsync(email);
+            User? user = await _unitOfWork.Users.GetByEmailAsync(email);
 
             if (user == null)
             {
-                user = new User
+                try
                 {
-                    Email = email,
-                    FullName = name,
-                    GoogleId = googleId,
-                    PictureUrl = picture,
-                    SecurityStamp = Guid.NewGuid().ToString("N"),
-                    CreatedAt = DateTime.UtcNow
-                };
-                var userId = _idGenerator.NewId();
-                user.Initialize(userId, userId);
-                await _unitOfWork.Users.AddAsync(user);
+                    await _unitOfWork.BeginTransactionAsync();
 
-                var rolesExisted = await _unitOfWork.Roles.GetByNameAsync(RoleCategory.User.ToString())
-                    ?? throw new ApplicationException(ErrorCode.NotFound, "Default role not found");
-                await _unitOfWork.UserRoles.AddUserToRoleAsync(_idGenerator.NewId(), user.Id, rolesExisted.Id);
+                    user = new User
+                    {
+                        Email = email,
+                        FullName = name,
+                        GoogleId = googleId,
+                        PictureUrl = picture,
+                        SecurityStamp = Guid.NewGuid().ToString("N"),
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    var userId = _idGenerator.NewId();
+                    user.Initialize(userId, userId);
+                    await _unitOfWork.Users.AddAsync(user);
 
-                await _unitOfWork.CommitAsync();
+                    var rolesExisted = await _unitOfWork.Roles.GetByNameAsync(RoleCategory.User.ToString())
+                        ?? throw new ApplicationException(ErrorCode.NotFound, "Default role not found");
+                    await _unitOfWork.UserRoles.AddUserToRoleAsync(_idGenerator.NewId(), user.Id, rolesExisted.Id);
+
+                    await _unitOfWork.CommitAsync();
+                }
+                catch
+                {
+                    await _unitOfWork.RollbackAsync();
+                    throw;
+                }
             }
 
             var roles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(user.Id)
