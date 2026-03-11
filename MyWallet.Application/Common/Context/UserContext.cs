@@ -145,5 +145,10 @@ namespace MyWallet.Application.Common.Context
             return IsAuthenticated() && RoleNames.Any(r => Enum.TryParse<RoleCategory>(r, true, out var roleEnum)
                                                           && roleEnum == RoleCategory.Admin);
         }
+        public bool IsUser()
+        {
+            return IsAuthenticated() && RoleNames.Any(r => Enum.TryParse<RoleCategory>(r, true, out var roleEnum)
+                                                          && roleEnum == RoleCategory.User);
+        }
     }
 }
