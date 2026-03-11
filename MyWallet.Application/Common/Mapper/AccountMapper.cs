@@ -10,13 +10,16 @@ namespace MyWallet.Application.Common.Mapper
             return new GetAccountRes
             {
                 Id = u.Id,
+                UserId = u.UserId,
                 AccountNumber = u.AccountNumber,
-                AccountHolder = u.AccountHolder,
-                BankCode = u.BankCode,
-                BankName = u.BankName,
+                AccountHolder = u.AccountHolder ?? "",
+                BankCode = u.BankCode ?? "",
+                BankName = u.BankName ?? "",
 
-                AccountType = u.AccountType,
+                Provider = u.Provider,
                 Balance = u.Balance,
+
+                IsPinned = u.IsPinned,
                 IsActive = u.IsActive,
 
                 Status = u.Status,

@@ -1,4 +1,5 @@
 ﻿using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Domain.Constants.Enum;
 
 namespace MyWallet.Application.DTOs.Response
 {
@@ -9,9 +10,10 @@ namespace MyWallet.Application.DTOs.Response
         public string AccountHolder { get; set; } = string.Empty;
         public string BankCode { get; set; } = string.Empty;
         public string BankName { get; set; } = string.Empty;
-        public string AccountType { get; set; } = string.Empty;
+        public AccountProvider Provider { get; set; }
 
         public decimal? Balance { get; set; }
-        public bool IsActive { get; set; } = true;
+        public bool IsPinned { get; set; }
+        public bool IsActive { get; set; }
     }
 }

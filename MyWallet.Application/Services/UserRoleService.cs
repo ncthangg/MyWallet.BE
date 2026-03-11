@@ -40,10 +40,9 @@ namespace MyWallet.Application.Services
         public async Task<bool> PostPutUserRolesAsync(PostPutUserRoleReq req)
         {
             if (!_userContext.IsAdmin())
-            {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            }
-            var user = await _unitOfWork.Users.GetByIdAsync(req.UserId) 
+
+            var user = await _unitOfWork.Users.GetByIdAsync(req.UserId)
                 ?? throw new ApplicationException(ErrorCode.NotFound, "User not found");
 
             var currentRoles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(req.UserId);
@@ -62,8 +61,8 @@ namespace MyWallet.Application.Services
                     roleId
                 );
             }
-            
-            if(rolesToRemove != null)
+
+            if (rolesToRemove != null)
                 await _unitOfWork.UserRoles.RemoveUserFromRoleAsync(req.UserId, rolesToRemove);
 
             return true;

@@ -6,6 +6,7 @@ using MyWallet.Application.DTOs.Request;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
+using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
 using MyWallet.Domain.Interface.IUnitOfWork;
@@ -26,14 +27,38 @@ namespace MyWallet.Application.Services
             _idGenerator = idGenerator;
         }
 
-        public async Task<PagingVM<GetAccountRes>> GetUserAccountsAsync(Guid userId, int pageNumber, int pageSize, string? sortField, string? sortDirection, bool? isActive, string? searchValue)
+        public async Task<PagingVM<GetAccountRes>> GetUserAccountsAsync(int pageNumber, int pageSize,
+                                                                        Guid? userId,
+                                                                        string? sortField, string? sortDirection,
+                                                                        AccountProvider? provider,
+                                                                        bool? isActive, 
+                                                                        string? searchValue)
         {
             if (userId == Guid.Empty)
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
 
-            var (items, totalCount) = await _unitOfWork.Accounts.GetByUserIdAsync(userId, pageNumber, pageSize, sortField, sortDirection, isActive, searchValue);
+            if (_userContext.IsAdmin())
+            {
 
-            var userDict = await UserHelper.GetUserNameDictAsync((List<BankInfo>)items, _unitOfWork.Users);
+            }
+            else if (_userContext.IsUser())
+            {
+                if (userId != _userContext.UserId || userId == null)
+                    throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
+            }
+            else
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
+
+            var (items, totalCount) = await _unitOfWork.Accounts.GetByUserIdAsync(pageNumber, pageSize, 
+                userId, 
+                sortField, sortDirection,
+                provider,
+                isActive, 
+                searchValue);
+
+            var userDict = await UserHelper.GetUserNameDictAsync((List<Account>)items, _unitOfWork.Users);
 
             var list = items.Select(p => AccountMapper.ToGetAccountRes(p, userDict)).ToList();
 
@@ -70,7 +95,9 @@ namespace MyWallet.Application.Services
 
             bool exists = await _unitOfWork.Accounts.AccountNumberExistsAsync(
                 userId,
-                request.AccountNumber
+                request.AccountNumber,
+                request.BankCode,
+                request.Provider
             );
             if (exists)
                 throw new ApplicationException(ErrorCode.DuplicateEntry, "Account number already exists");
@@ -79,11 +106,12 @@ namespace MyWallet.Application.Services
             {
                 UserId = userId,
                 AccountNumber = request.AccountNumber.Trim(),
-                AccountHolder = request.AccountHolder.Trim(),
-                BankCode = request.BankCode.Trim(),
-                BankName = request.BankName.Trim(),
-                AccountType = request.AccountType ?? null,
-                IsActive = true,
+                AccountHolder = request.AccountHolder?.Trim(),
+                BankCode = request.BankCode?.Trim(),
+                BankName = request.BankName?.Trim(),
+                Balance = 0,
+                Provider = request.Provider,
+                IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -114,16 +142,20 @@ namespace MyWallet.Application.Services
             bool exists = await _unitOfWork.Accounts.AccountNumberExistsAsync(
                 userId,
                 request.AccountNumber,
+                request.BankCode,
+                request.Provider,
                 id
             );
             if (exists)
                 throw new ApplicationException(ErrorCode.DuplicateEntry, "Account number already exists");
 
             account.AccountNumber = request.AccountNumber.Trim();
-            account.AccountHolder = request.AccountHolder.Trim();
-            account.BankCode = request.BankCode.Trim();
-            account.BankName = request.BankName.Trim();
-            account.AccountType = request.AccountType ?? account.AccountType;
+            account.AccountHolder = request.AccountHolder?.Trim();
+            account.BankCode = request.BankCode?.Trim();
+            account.BankName = request.BankName?.Trim();
+            account.Provider = request.Provider;
+            account.IsPinned = request.IsPinned;
+            account.IsActive = request.IsActive;
             account.SetUpdated(userId);
 
             if (!account.IsValidAccount())

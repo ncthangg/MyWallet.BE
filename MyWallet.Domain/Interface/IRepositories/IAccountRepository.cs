@@ -1,12 +1,18 @@
-﻿using MyWallet.Domain.Entities;
+﻿using MyWallet.Domain.Constants.Enum;
+using MyWallet.Domain.Entities;
 using MyWallet.Domain.Interface.IRepositories.Base;
 
 namespace MyWallet.Domain.Interface.IRepositories
 {
     public interface IAccountRepository : IRepository<Account>
     {
-        Task<(IEnumerable<Account>, int totalCount)> GetByUserIdAsync(Guid userId, int pageNumber, int pageSize, string? sortField, string? sortDirection, bool? isActive, string? searchValue);
+        Task<(IEnumerable<Account>, int totalCount)> GetByUserIdAsync(int pageNumber, int pageSize,
+            Guid? userId,
+            string? sortField, string? sortDirection,
+            AccountProvider? provider,
+            bool? isActive, 
+            string? searchValue);
         Task<Account> GetByAccountNumberAsync(string accountNumber);
-        Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, Guid? excludeAccountId = null);
+        Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, string? bankCode, AccountProvider provider, Guid? excludeAccountId = null);
     }
 }

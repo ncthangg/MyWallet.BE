@@ -5,6 +5,7 @@ using MyWallet.Application.DTOs.Request;
 using MyWallet.Application.DTOs.Response;
 using MyWallet.Application.DTOs.Response.Base;
 using MyWallet.Domain.Constants;
+using MyWallet.Domain.Constants.Enum;
 using System.Buffers;
 
 namespace MyWallet.API.Controllers
@@ -20,9 +21,19 @@ namespace MyWallet.API.Controllers
         }
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Get(Guid userId, int pageNumber = 1, int pageSize = 10, string? sortField = null, string? sortDirection = null, bool? isActive = null, string? searchValue = null)
+        public async Task<IActionResult> Get(int pageNumber = 1, int pageSize = 10,
+            Guid? userId = null,
+            string? sortField = null, string? sortDirection = null,
+            AccountProvider? provider = null,
+            bool? isActive = null,
+            string? searchValue = null)
         {
-            PagingVM<GetAccountRes> result = await _accountService.GetUserAccountsAsync(userId, pageNumber, pageSize, sortField, sortDirection, isActive, searchValue);
+            PagingVM<GetAccountRes> result = await _accountService.GetUserAccountsAsync(pageNumber, pageSize,
+                                                                                        userId, 
+                                                                                        sortField, sortDirection,
+                                                                                        provider,
+                                                                                        isActive,
+                                                                                        searchValue);
             return Ok(new BaseResponseModel<PagingVM<GetAccountRes>>(
                 code: SuccessCode.Success,
                 data: result,
@@ -40,7 +51,7 @@ namespace MyWallet.API.Controllers
         }
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Post([FromForm] PostAccountReq request)
+        public async Task<IActionResult> Post(PostAccountReq request)
         {
             await _accountService.PostAccountAsync(request);
             return Ok(new BaseResponseModel<string>(
@@ -50,7 +61,7 @@ namespace MyWallet.API.Controllers
         }
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> Put(Guid id, [FromForm] PutAccountReq request)
+        public async Task<IActionResult> Put(Guid id, PutAccountReq request)
         {
             await _accountService.PutAccountAsync(id, request);
             return Ok(new BaseResponseModel<string>(

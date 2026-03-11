@@ -1,8 +1,11 @@
 ﻿using Dapper;
+using Microsoft.Identity.Client;
+using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Interface.IRepositories;
 using MyWallet.Domain.Interface.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.Repositories.Base;
+using System.Runtime.CompilerServices;
 
 namespace MyWallet.Infrastructure.Persistence.Repositories
 {
@@ -13,11 +16,13 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
         {
         }
 
-        public async Task<(IEnumerable<Account>, int totalCount)> GetByUserIdAsync(Guid userId, int pageNumber, int pageSize, string? sortField, string? sortDirection, bool? isActive, string? searchValue)
+        public async Task<(IEnumerable<Account>, int totalCount)> GetByUserIdAsync(int pageNumber, int pageSize,
+                                                                                   Guid? userId,
+                                                                                   string? sortField, string? sortDirection,
+                                                                                   AccountProvider? provider,
+                                                                                   bool? isActive,
+                                                                                   string? searchValue)
         {
-            if (userId == Guid.Empty)
-                throw new ArgumentException("Invalid user ID", nameof(userId));
-
             var orderBy = "CreatedAt DESC";
 
             if (!string.IsNullOrEmpty(sortField))
@@ -34,47 +39,54 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 };
             }
 
+            var orderByFull = userId.HasValue ? $"IsPinned DESC, {orderBy}" : orderBy;
+
             var sql = $@"
-        SELECT 
-            Id, UserId, AccountNumber, AccountHolder, 
-            BankCode, BankName, AccountType, Balance, IsActive
+        SELECT
+            Id, UserId, AccountNumber, AccountHolder,
+            BankCode, BankName, Provider, Balance, IsPinned, IsActive,
             Status, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, DeletedAt, DeletedBy
         FROM Accounts
-        WHERE 
-            (@IsActive IS NULL OR IsActive = @IsActive)
-            AND (@UserId == UserId)
+        WHERE
+            (@UserId IS NULL OR UserId = @UserId)
+            AND (@Provider IS NULL OR Provider = @Provider)
+            AND (@IsActive IS NULL OR IsActive = @IsActive)
             AND (
-                @SearchValue IS NULL 
+                @SearchValue IS NULL
                 OR AccountNumber LIKE '%' + @SearchValue + '%'
-                OR AccountHolder LIKE '%' + @SearchValue + '%'
-                OR BankCode LIKE '%' + @SearchValue + '%'
-                OR BankName LIKE '%' + @SearchValue + '%'
+                OR ISNULL(AccountHolder,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(BankCode,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(BankName,'') LIKE '%' + @SearchValue + '%'
             )
-        ORDER BY {orderBy}
+        ORDER BY 
+            {orderByFull}
         OFFSET (@PageNumber - 1) * @PageSize ROWS
         FETCH NEXT @PageSize ROWS ONLY;
 
         SELECT COUNT(1)
         FROM Accounts
-        WHERE 
-            (@IsActive IS NULL OR IsActive = @IsActive)
-            AND (@UserId == UserId)
+        WHERE
+            (@UserId IS NULL OR UserId = @UserId)
+            AND (@Provider IS NULL OR Provider = @Provider)
+            AND (@IsActive IS NULL OR IsActive = @IsActive)
             AND (
-                @SearchValue IS NULL 
+                @SearchValue IS NULL
                 OR AccountNumber LIKE '%' + @SearchValue + '%'
-                OR AccountHolder LIKE '%' + @SearchValue + '%'
-                OR BankCode LIKE '%' + @SearchValue + '%'
-                OR BankName LIKE '%' + @SearchValue + '%'
+                OR ISNULL(AccountHolder,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(BankCode,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(BankName,'') LIKE '%' + @SearchValue + '%'
             );
         ";
 
             return await QueryPagedAsync<Account>(sql,
                 new
                 {
-                    UserId = userId,
                     PageNumber = pageNumber,
                     PageSize = pageSize,
+                    UserId = userId,
+                    Provider = provider,
                     IsActive = isActive,
+                    SearchValue = searchValue
                 }
             );
         }
@@ -94,7 +106,7 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             );
         }
 
-        public async Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, Guid? excludeAccountId)
+        public async Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, string? bankCode, AccountProvider provider, Guid? excludeAccountId)
         {
             if (userId == Guid.Empty)
                 throw new ArgumentException("Invalid user ID", nameof(userId));
@@ -102,18 +114,22 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 throw new ArgumentException("Account number cannot be empty", nameof(accountNumber));
 
             const string sql = @"
-                SELECT 1
+                SELECT TOP 1 1
                 FROM Accounts
                 WHERE UserId = @UserId
-                  AND AccountNumber = @AccountNumber
-                  AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
-            ";
+                      AND AccountNumber = @AccountNumber
+                      AND (@BankCode IS NULL OR BankCode = @BankCode)
+                      AND Provider = @Provider
+                      AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
+                ";
 
             var count = await QueryFirstOrDefaultAsync<int>(sql,
                 new
                 {
                     UserId = userId,
                     AccountNumber = accountNumber,
+                    BankCode = bankCode,
+                    Provider = provider,
                     ExcludeId = excludeAccountId
                 }
             );
