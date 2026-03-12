@@ -1,7 +1,6 @@
 ﻿using Dapper;
-using MyWallet.Domain.Interface.IDbContext;
-using MyWallet.Domain.Interface.IRepositories.Base;
-using MyWallet.Domain.Interface.IUnitOfWork;
+using MyWallet.Application.Contracts.IRepositories.Base;
+using MyWallet.Application.Contracts.IUnitOfWork;
 using System.Data;
 
 namespace MyWallet.Infrastructure.Persistence.Repositories.Base

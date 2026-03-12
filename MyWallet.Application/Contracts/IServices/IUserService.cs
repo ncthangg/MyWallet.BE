@@ -1,5 +1,5 @@
-﻿using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+﻿using MyWallet.Application.DTOs.Base.BaseRes;
+using MyWallet.Application.DTOs.Users.Responses;
 
 namespace MyWallet.Application.Contracts.IServices
 {

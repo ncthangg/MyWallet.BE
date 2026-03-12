@@ -1,8 +1,8 @@
-﻿using MyWallet.Domain.Interface.IRepositories;
-using MyWallet.Domain.Interface.IUnitOfWork;
+﻿using MyWallet.Application.Contracts.IRepositories;
+using MyWallet.Application.Contracts.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.Repositories;
 using System.Data;
-using IDbConnectionFactory = MyWallet.Domain.Interface.IDbContext.IDbConnectionFactory;
+using IDbConnectionFactory = MyWallet.Application.Contracts.IDbContext.IDbConnectionFactory;
 
 namespace MyWallet.Infrastructure.Persistence.UnitOfWork
 {

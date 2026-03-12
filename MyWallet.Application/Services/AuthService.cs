@@ -5,12 +5,12 @@ using MyWallet.Application.Contracts.IConfigs;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Response;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Auths.Responses;
+using MyWallet.Application.DTOs.Users.Responses;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Constants.Enum;
-using MyWallet.Domain.Entities;
-using MyWallet.Domain.Interface.IRepositories;
-using MyWallet.Domain.Interface.IUnitOfWork;
+using MyWallet.Domain.Entities; 
 using System.Security.Claims;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 

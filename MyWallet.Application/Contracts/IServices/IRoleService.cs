@@ -1,5 +1,5 @@
-﻿using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
+﻿using MyWallet.Application.DTOs.Roles.Requests;
+using MyWallet.Application.DTOs.Roles.Responses;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,6 +1,5 @@
-﻿using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+﻿using MyWallet.Application.DTOs.Roles.Responses;
+using MyWallet.Application.DTOs.UserRoles.Requests;
 
 namespace MyWallet.Application.Contracts.IServices
 {

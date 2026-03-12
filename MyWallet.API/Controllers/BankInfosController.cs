@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyWallet.Application.Contracts.IServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.DTOs.Banks.Requests;
+using MyWallet.Application.DTOs.Banks.Responses;
+using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Domain.Constants;
 
 namespace MyWallet.API.Controllers

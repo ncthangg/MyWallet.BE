@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Request;
+using MyWallet.Application.DTOs.Banks.Requests;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Infrastructure.Persistence.MyDbContext;

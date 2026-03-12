@@ -5,10 +5,10 @@ using Microsoft.Extensions.Options;
 using MyWallet.Application.Common.Context;
 using MyWallet.Application.Contracts.IConfigs;
 using MyWallet.Application.Contracts.IContext;
+using MyWallet.Application.Contracts.IRepositories;
 using MyWallet.Application.Contracts.ISubServices;
+using MyWallet.Application.Contracts.IUnitOfWork;
 using MyWallet.Domain.Constants;
-using MyWallet.Domain.Interface.IRepositories;
-using MyWallet.Domain.Interface.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.MyDbContext;
 using MyWallet.Infrastructure.Persistence.Repositories;
 using MyWallet.Infrastructure.Persistence.Seeder;
@@ -16,7 +16,7 @@ using MyWallet.Infrastructure.Persistence.UnitOfWork;
 using MyWallet.Infrastructure.Security;
 using MyWallet.Infrastructure.SubService;
 using StackExchange.Redis;
-using IDbConnectionFactory = MyWallet.Domain.Interface.IDbContext.IDbConnectionFactory;
+using IDbConnectionFactory = MyWallet.Application.Contracts.IDbContext.IDbConnectionFactory;
 
 namespace MyWallet.Infrastructure.DependencyInjection
 {
