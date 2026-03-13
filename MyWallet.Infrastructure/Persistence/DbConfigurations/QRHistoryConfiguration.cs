@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
 
 namespace MyWallet.Infrastructure.Persistence.DbConfigurations
@@ -38,6 +39,12 @@ namespace MyWallet.Infrastructure.Persistence.DbConfigurations
                 .IsRequired()
                 .HasColumnType("decimal(18,2)");
 
+            builder.Property(qr => qr.Currency)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(3)
+                .HasDefaultValue(Currency.VND);
+
             builder.Property(qr => qr.Description)
                 .HasMaxLength(500);
 
@@ -46,6 +53,10 @@ namespace MyWallet.Infrastructure.Persistence.DbConfigurations
 
             builder.Property(qr => qr.QRImageUrl)
                 .HasMaxLength(500);
+
+            builder.Property(qr => qr.TransactionRef)
+                .IsRequired()
+                .HasMaxLength(50);
 
             builder.Property(qr => qr.Provider)
                 .IsRequired()
@@ -60,9 +71,11 @@ namespace MyWallet.Infrastructure.Persistence.DbConfigurations
                 .IsRequired()
                 .HasDefaultValue(false);
 
-            builder.Property(qr => qr.IsPaid)
+            builder.Property(qr => qr.Status)
                 .IsRequired()
-                .HasDefaultValue(false);
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(QRStatus.CREATED);
 
             builder.Property(qr => qr.CreatedAt)
                 .IsRequired()
@@ -77,18 +90,16 @@ namespace MyWallet.Infrastructure.Persistence.DbConfigurations
             builder.Property(qr => qr.DeletedAt)
                 .IsRequired(false);
 
-            builder.Property(qr => qr.IsDeleted)
-                .IsRequired()
-                .HasDefaultValue(false);
-
             // Indexes
             builder.HasIndex(o => new { o.UserId, o.CreatedAt })
-                .HasFilter("[IsDeleted] = 0")
                 .HasDatabaseName("IX_QRHistories_User_Paging");
 
             builder.HasIndex(o => new { o.AccountId, o.CreatedAt })
-                .HasFilter("[IsDeleted] = 0")
                 .HasDatabaseName("IX_QRHistories_Account_Paging");
+
+            builder.HasIndex(qr => qr.TransactionRef)
+                .IsUnique()
+                .HasDatabaseName("IX_QRHistory_TransactionRef"); 
 
             // Relationships
             builder.HasOne(qr => qr.User)

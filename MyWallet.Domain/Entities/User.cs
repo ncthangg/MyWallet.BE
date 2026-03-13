@@ -16,9 +16,6 @@
 
         public string? SecurityStamp { get; set; }
 
-        public bool IsActive { get; set; }
-        public bool IsDeleted { get; set; }
-
         public virtual ICollection<UserToken>? UserTokens { get; set; }
         public virtual ICollection<UserRole>? UserRoles { get; set; }
 
@@ -36,19 +33,6 @@
             {
                 return false;
             }
-        }
-        public void Activate()
-        {
-            IsActive = true;
-        }
-        public void Deactivate()
-        {
-            IsActive = false;
-        }
-        public void Delete(Guid userId)
-        {
-            IsDeleted = true;
-            SetDeleted(userId);
         }
     }
 }

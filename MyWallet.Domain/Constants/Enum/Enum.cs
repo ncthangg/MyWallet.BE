@@ -5,11 +5,12 @@
         Admin,
         User
     }
-    public enum PaymentStatus
+    public enum QRStatus
     {
-        PENDING,
-        SUCCESS,
-        FAILED
+        CREATED,
+        PAID, 
+        EXPIRED,
+        CANCELLED
     }
     public enum AccountProvider
     {
@@ -28,5 +29,11 @@
         VCB,
         TPB,
         SCB
+    }
+    public enum Currency
+    {
+        VND,
+        USD,
+        EUR
     }
 }

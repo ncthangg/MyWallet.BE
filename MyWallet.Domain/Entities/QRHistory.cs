@@ -1,4 +1,5 @@
 ﻿using MyWallet.Domain.Constants.Enum;
+using System.Net.NetworkInformation;
 
 namespace MyWallet.Domain.Entities
 {
@@ -15,23 +16,23 @@ namespace MyWallet.Domain.Entities
         public string? BankNameSnapshot { get; set; }
         // QR info
         public decimal Amount { get; set; }
+        public Currency Currency { get; set; } = Currency.VND;
         public string? Description { get; set; }
         public string? QRData { get; set; }
         public string? QRImageUrl { get; set; }
+        public string? TransactionRef { get; set; }
 
         public AccountProvider Provider { get; set; }
         public QRReceiverType ReceiverType { get; set; }
 
         public bool IsFixedAmount { get; set; }
-        public bool IsPaid { get; set; }
+        public QRStatus Status { get; set; } = QRStatus.CREATED;
 
         public DateTime CreatedAt { get; set; }
         public DateTime? ExpiredAt { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime? DeletedAt { get; set; }
         
-        public bool IsDeleted { get; set; }
-
         public virtual User? User { get; set; }
         public virtual Account? Account { get; set; }
         public bool IsValidQRHistory()
@@ -42,7 +43,6 @@ namespace MyWallet.Domain.Entities
         }
         public void Delete()
         {
-            IsDeleted = true;
             DeletedAt = DateTime.UtcNow;
         }
     }
