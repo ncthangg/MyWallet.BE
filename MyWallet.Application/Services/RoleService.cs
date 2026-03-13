@@ -1,13 +1,13 @@
-﻿using MyWallet.Application.Common.Mapper;
+﻿using MyWallet.Application.Common.Helper;
+using MyWallet.Application.Common.Mapper;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Roles.Requests;
+using MyWallet.Application.DTOs.Roles.Responses;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
-using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IUnitOfWork;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
 namespace MyWallet.Application.Services
@@ -29,9 +29,8 @@ namespace MyWallet.Application.Services
             var roles = await _unitOfWork.Roles.GetAllAsync()
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Roles not found");
 
-            var userDict = await UserHelper.GetUserNameDictAsync<Role>(roles.ToList(), _unitOfWork.Users);
 
-            return roles.Select(p => RoleMapper.ToGetRoleRes(p, userDict)).ToList();
+            return roles.Select(p => RoleMapper.ToGetRoleRes(p)).ToList();
         }
         public async Task<GetRoleRes> GetByIdAsync(Guid id)
         {
@@ -41,9 +40,7 @@ namespace MyWallet.Application.Services
             var role = await _unitOfWork.Roles.GetByIdAsync(id)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Role {id} not found");
 
-            var userDict = await UserHelper.GetUserNameDictAsync(role, _unitOfWork.Users);
-
-            return RoleMapper.ToGetRoleRes(role, userDict);
+            return RoleMapper.ToGetRoleRes(role);
         }
         public async Task<Guid> PostAsync(PostRoleReq req)
         {

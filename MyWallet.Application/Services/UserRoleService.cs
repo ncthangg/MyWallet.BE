@@ -2,13 +2,12 @@
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Roles.Responses;
+using MyWallet.Application.DTOs.UserRoles.Requests;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IUnitOfWork;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
 namespace MyWallet.Application.Services
@@ -33,9 +32,7 @@ namespace MyWallet.Application.Services
             var roles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(userId)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Role of {userId} not found");
 
-            var userDict = await UserHelper.GetUserNameDictAsync<Role>(roles.ToList(), _unitOfWork.Users);
-
-            return roles.Select(p => RoleMapper.ToGetRoleRes(p, userDict)).ToList();
+            return roles.Select(p => RoleMapper.ToGetRoleRes(p)).ToList();
         }
         public async Task<bool> PostPutUserRolesAsync(PostPutUserRoleReq req)
         {

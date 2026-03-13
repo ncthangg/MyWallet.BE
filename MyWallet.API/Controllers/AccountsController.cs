@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyWallet.Application.Contracts.IServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.DTOs.Accounts.Requests;
+using MyWallet.Application.DTOs.Accounts.Responses;
+using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Domain.Constants;
-using MyWallet.Domain.Constants.Enum;
-using System.Buffers;
 
 namespace MyWallet.API.Controllers
 {
@@ -21,19 +19,33 @@ namespace MyWallet.API.Controllers
         }
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Get(int pageNumber = 1, int pageSize = 10,
-            Guid? userId = null,
-            string? sortField = null, string? sortDirection = null,
-            AccountProvider? provider = null,
-            bool? isActive = null,
-            string? searchValue = null)
+        public async Task<IActionResult> Get([FromQuery] GetAccountReq req)
         {
-            PagingVM<GetAccountRes> result = await _accountService.GetUserAccountsAsync(pageNumber, pageSize,
-                                                                                        userId, 
-                                                                                        sortField, sortDirection,
-                                                                                        provider,
-                                                                                        isActive,
-                                                                                        searchValue);
+            PagingVM<GetAccountRes> result = await _accountService.GetAllAsync(req.PageNumber, req.PageSize,
+                                                                               req.SortField, req.SortDirection,
+                                                                               null,
+                                                                               req.Provider,
+                                                                               req.SearchValue,
+                                                                               req.IsActive,
+                                                                               false,
+                                                                               true);
+            return Ok(new BaseResponseModel<PagingVM<GetAccountRes>>(
+                code: SuccessCode.Success,
+                data: result,
+                message: null));
+        }
+        [HttpGet("by-admin")]
+        [Authorize]
+        public async Task<IActionResult> GetByAdmin([FromQuery] GetAccountByAdminReq req)
+        {
+            PagingVM<GetAccountRes> result = await _accountService.GetAllAsync(req.PageNumber, req.PageSize,
+                                                                               req.SortField, req.SortDirection,
+                                                                               req.UserId,
+                                                                               req.Provider,
+                                                                               req.SearchValue,
+                                                                               req.IsActive,
+                                                                               req.IsDeleted,
+                                                                               req.Status);
             return Ok(new BaseResponseModel<PagingVM<GetAccountRes>>(
                 code: SuccessCode.Success,
                 data: result,

@@ -1,18 +1,20 @@
-﻿using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+﻿using MyWallet.Application.DTOs.Accounts.Requests;
+using MyWallet.Application.DTOs.Accounts.Responses;
+using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Domain.Constants.Enum;
 
 namespace MyWallet.Application.Contracts.IServices
 {
     public interface IAccountService
     {
-        Task<PagingVM<GetAccountRes>> GetUserAccountsAsync(int pageNumber, int pageSize,
-                                                           Guid? userId,
+        Task<PagingVM<GetAccountRes>> GetAllAsync(int pageNumber, int pageSize,
                                                            string? sortField, string? sortDirection,
+                                                           Guid? userId,
                                                            AccountProvider? provider,
-                                                           bool? isActive, 
-                                                           string? searchValue);
+                                                           string? searchValue,
+                                                           bool? isActive,
+                                                           bool? isDeleted,
+                                                           bool? status);
         Task<GetAccountRes> GetByIdAsync(Guid id);
         Task<Guid> PostAccountAsync(PostAccountReq request);
         Task PutAccountAsync(Guid id, PutAccountReq request);

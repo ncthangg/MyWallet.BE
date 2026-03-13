@@ -1,11 +1,11 @@
-﻿using MyWallet.Application.DTOs.Response;
-using MyWallet.Domain.Entities;
+﻿using MyWallet.Application.DTOs.Accounts.Queries;
+using MyWallet.Application.DTOs.Accounts.Responses;
 
 namespace MyWallet.Application.Common.Mapper
 {
     public class AccountMapper
     {
-        public static GetAccountRes ToGetAccountRes(Account u, Dictionary<Guid, string>? userDict)
+        public static GetAccountRes ToGetAccountRes(AccountQueryDto u)
         {
             return new GetAccountRes
             {
@@ -13,8 +13,43 @@ namespace MyWallet.Application.Common.Mapper
                 UserId = u.UserId,
                 AccountNumber = u.AccountNumber,
                 AccountHolder = u.AccountHolder ?? "",
+
                 BankCode = u.BankCode ?? "",
+                NapasCode = u.NapasCode ??"",
                 BankName = u.BankName ?? "",
+                ShortName = u.ShortName ?? "",
+                LogoUrl = u.LogoUrl ?? "",
+
+                Provider = u.Provider,
+                Balance = u.Balance,
+
+                IsPinned = u.IsPinned,
+                IsActive = u.IsActive,
+
+                CreatedAt = u.CreatedAt,
+                UpdatedAt = u.UpdatedAt,
+
+                CreatedBy = u.CreatedBy,
+                UpdatedBy = u.UpdatedBy,
+
+                CreatedByName = u.CreatedByName,
+                UpdatedByName = u.UpdatedByName,
+            };
+        }
+        public static GetAccountRes ToGetAccountByAdminRes(AccountQueryDto u)
+        {
+            return new GetAccountRes
+            {
+                Id = u.Id,
+                UserId = u.UserId,
+                AccountNumber = u.AccountNumber,
+                AccountHolder = u.AccountHolder ?? "",
+
+                BankCode = u.BankCode ?? "",
+                NapasCode = u.NapasCode ?? "",
+                BankName = u.BankName ?? "",
+                ShortName = u.ShortName ?? "",
+                LogoUrl = u.LogoUrl ?? "",
 
                 Provider = u.Provider,
                 Balance = u.Balance,
@@ -27,11 +62,14 @@ namespace MyWallet.Application.Common.Mapper
                 UpdatedAt = u.UpdatedAt,
                 DeletedAt = u.DeletedAt,
 
-                CreatedByName = BaseMapper.GetUserName(u.CreatedBy, userDict),
-                UpdatedByName = BaseMapper.GetUserName(u.UpdatedBy, userDict),
-                DeletedByName = BaseMapper.GetUserName(u.DeletedBy, userDict),
+                CreatedBy = u.CreatedBy,
+                UpdatedBy = u.UpdatedBy,
+                DeletedBy = u.DeletedBy,
+
+                CreatedByName = u.CreatedByName,
+                UpdatedByName = u.UpdatedByName,
+                DeletedByName = u.DeletedByName,
             };
         }
-
     }
 }

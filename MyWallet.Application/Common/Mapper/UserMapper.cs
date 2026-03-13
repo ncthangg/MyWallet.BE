@@ -1,11 +1,11 @@
-﻿using MyWallet.Application.DTOs.Response;
+﻿using MyWallet.Application.DTOs.Users.Responses;
 using MyWallet.Domain.Entities;
 
 namespace MyWallet.Application.Common.Mapper
 {
     public static class UserMapper
     {
-        public static GetUserBaseRes ToGetUsersRes(User u, Dictionary<Guid, string>? userDict)
+        public static GetUserBaseRes ToGetUsersRes(User u)
         {
             return new GetUserBaseRes
             {

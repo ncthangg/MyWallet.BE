@@ -49,7 +49,7 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             AND (
                 @SearchValue IS NULL
                 OR u.FullName LIKE '%' + @SearchValue + '%'
-                OR u.Email LIKE '%' + @SearchValue + '%'
+                OR u.Email LIKE @SearchValue + '%'
             )
             AND (
                 @RoleId IS NULL
@@ -71,7 +71,7 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             AND (
                 @SearchValue IS NULL
                 OR u.FullName LIKE '%' + @SearchValue + '%'
-                OR u.Email LIKE '%' + @SearchValue + '%'
+                OR u.Email LIKE @SearchValue + '%'
             )
             AND (
                 @RoleId IS NULL

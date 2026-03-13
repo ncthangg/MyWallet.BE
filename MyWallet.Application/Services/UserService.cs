@@ -2,12 +2,12 @@
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Base.BaseRes;
+using MyWallet.Application.DTOs.Users.Responses;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IUnitOfWork;
 
 namespace MyWallet.Application.Services
 {
@@ -33,9 +33,8 @@ namespace MyWallet.Application.Services
                                                                             searchValue,
                                                                             roleId);
 
-            var userDict = await UserHelper.GetUserNameDictAsync((List<User>)items, _unitOfWork.Users);
 
-            var list = items.Select(p => UserMapper.ToGetUsersRes(p, userDict)).ToList();
+            var list = items.Select(p => UserMapper.ToGetUsersRes(p)).ToList();
 
             return new PagingVM<GetUserBaseRes>
             {

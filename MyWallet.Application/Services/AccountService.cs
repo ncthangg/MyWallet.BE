@@ -2,14 +2,14 @@
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Accounts.Requests;
+using MyWallet.Application.DTOs.Accounts.Responses;
+using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
-using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IUnitOfWork;
+using System.Collections.Generic;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
 namespace MyWallet.Application.Services
@@ -27,40 +27,53 @@ namespace MyWallet.Application.Services
             _idGenerator = idGenerator;
         }
 
-        public async Task<PagingVM<GetAccountRes>> GetUserAccountsAsync(int pageNumber, int pageSize,
-                                                                        Guid? userId,
-                                                                        string? sortField, string? sortDirection,
-                                                                        AccountProvider? provider,
-                                                                        bool? isActive, 
-                                                                        string? searchValue)
+        public async Task<PagingVM<GetAccountRes>> GetAllAsync(int pageNumber, int pageSize,
+                                                               string? sortField, string? sortDirection,
+                                                               Guid? userId,
+                                                               AccountProvider? provider,
+                                                               string? searchValue,
+                                                               bool? isActive,
+                                                               bool? isDeleted,
+                                                               bool? status)
         {
             if (userId == Guid.Empty)
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
 
-            if (_userContext.IsAdmin())
+            if (!_userContext.IsAdmin() && !_userContext.IsUser())
             {
-
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
             }
             else if (_userContext.IsUser())
             {
-                if (userId != _userContext.UserId || userId == null)
-                    throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
+                userId = _userContext.UserId;
+            }
+            else
+            {
+
+            }
+
+            var (items, totalCount) = await _unitOfWork.Accounts.GetAllAsync(pageNumber, pageSize,
+                                                                                  sortField, sortDirection,
+                                                                                  userId,
+                                                                                  provider,
+                                                                                  searchValue,
+                                                                                  isActive,
+                                                                                  isDeleted,
+                                                                                  status);
+            IEnumerable<GetAccountRes> list = [];
+
+            if (_userContext.IsAdmin())
+            {
+                list = items.Select(p => AccountMapper.ToGetAccountByAdminRes(p)).ToList();
+            }
+            else if (_userContext.IsUser())
+            {
+                list = items.Select(p => AccountMapper.ToGetAccountRes(p)).ToList();
             }
             else
             {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
             }
-
-            var (items, totalCount) = await _unitOfWork.Accounts.GetByUserIdAsync(pageNumber, pageSize, 
-                userId, 
-                sortField, sortDirection,
-                provider,
-                isActive, 
-                searchValue);
-
-            var userDict = await UserHelper.GetUserNameDictAsync((List<Account>)items, _unitOfWork.Users);
-
-            var list = items.Select(p => AccountMapper.ToGetAccountRes(p, userDict)).ToList();
 
             return new PagingVM<GetAccountRes>
             {
@@ -77,12 +90,22 @@ namespace MyWallet.Application.Services
             if (id == Guid.Empty)
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
 
-            var account = await _unitOfWork.Accounts.GetByIdAsync(id)
+            var account = await _unitOfWork.Accounts.GetByIdAsync(id, _userContext.UserId, _userContext.IsAdmin())
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
 
-            var userDict = await UserHelper.GetUserNameDictAsync(account, _unitOfWork.Users);
 
-            return AccountMapper.ToGetAccountRes(account, userDict);
+            if (_userContext.IsAdmin())
+            {
+                return AccountMapper.ToGetAccountByAdminRes(account);
+            }
+            else if (_userContext.IsUser())
+            {
+                return AccountMapper.ToGetAccountRes(account);
+            }
+            else
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
         }
 
         public async Task<Guid> PostAccountAsync(PostAccountReq request)
@@ -108,7 +131,6 @@ namespace MyWallet.Application.Services
                 AccountNumber = request.AccountNumber.Trim(),
                 AccountHolder = request.AccountHolder?.Trim(),
                 BankCode = request.BankCode?.Trim(),
-                BankName = request.BankName?.Trim(),
                 Balance = 0,
                 Provider = request.Provider,
                 IsActive = request.IsActive,
@@ -152,7 +174,6 @@ namespace MyWallet.Application.Services
             account.AccountNumber = request.AccountNumber.Trim();
             account.AccountHolder = request.AccountHolder?.Trim();
             account.BankCode = request.BankCode?.Trim();
-            account.BankName = request.BankName?.Trim();
             account.Provider = request.Provider;
             account.IsPinned = request.IsPinned;
             account.IsActive = request.IsActive;

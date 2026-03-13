@@ -17,7 +17,6 @@ namespace MyWallet.Application.Contracts.IRepositories
                                                                          bool? isDeleted,
                                                                          bool? status);
         Task<AccountQueryDto?> GetByIdAsync(Guid id, Guid? userId, bool isAdmin);
-        Task<Account> GetByAccountNumberAsync(string accountNumber);
         Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, string? bankCode, AccountProvider provider, Guid? excludeAccountId = null);
     }
 }

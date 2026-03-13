@@ -3,13 +3,13 @@ using MyWallet.Application.Common.Mapper;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
-using MyWallet.Application.DTOs.Request;
-using MyWallet.Application.DTOs.Response;
-using MyWallet.Application.DTOs.Response.Base;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Banks.Requests;
+using MyWallet.Application.DTOs.Banks.Responses;
+using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Domain.Constants;
 using MyWallet.Domain.Entities;
 using MyWallet.Domain.Helper;
-using MyWallet.Domain.Interface.IUnitOfWork;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using ApplicationException = MyWallet.Application.Exceptions.ApplicationException;
 
@@ -39,9 +39,7 @@ namespace MyWallet.Application.Services
                                                                       isActive,
                                                                       searchValue);
 
-            var userDict = await UserHelper.GetUserNameDictAsync((List<BankInfo>)items, _unitOfWork.Users);
-
-            var list = items.Select(p => BankInfoMapper.ToGetBankInfoRes(p, userDict)).ToList();
+            var list = items.Select(p => BankInfoMapper.ToGetBankInfoRes(p)).ToList();
 
             return new PagingVM<GetBankInfoRes>
             {
@@ -60,9 +58,7 @@ namespace MyWallet.Application.Services
             var bank = await _unitOfWork.BankInfos.GetByIdAsync(id)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Bank {id} not found");
 
-            var userDict = await UserHelper.GetUserNameDictAsync(bank, _unitOfWork.Users);
-
-            return BankInfoMapper.ToGetBankInfoRes(bank, userDict);
+            return BankInfoMapper.ToGetBankInfoRes(bank);
         }
         public async Task PostAsync(PostBankInfoReq req)
         {

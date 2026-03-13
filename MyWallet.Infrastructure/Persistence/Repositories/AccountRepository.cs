@@ -1,9 +1,11 @@
 ﻿using Dapper;
 using Microsoft.Identity.Client;
+using MyWallet.Application.Contracts.IRepositories;
+using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.DTOs.Accounts.Queries;
+using MyWallet.Application.DTOs.Accounts.Responses;
 using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;
-using MyWallet.Domain.Interface.IRepositories;
-using MyWallet.Domain.Interface.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.Repositories.Base;
 using System.Runtime.CompilerServices;
 
@@ -16,12 +18,14 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
         {
         }
 
-        public async Task<(IEnumerable<Account>, int totalCount)> GetByUserIdAsync(int pageNumber, int pageSize,
-                                                                                   Guid? userId,
+        public async Task<(IEnumerable<AccountQueryDto>, int totalCount)> GetAllAsync(int pageNumber, int pageSize,
                                                                                    string? sortField, string? sortDirection,
+                                                                                   Guid? userId,
                                                                                    AccountProvider? provider,
+                                                                                   string? searchValue,
                                                                                    bool? isActive,
-                                                                                   string? searchValue)
+                                                                                   bool? isDeleted,
+                                                                                   bool? status)
         {
             var orderBy = "CreatedAt DESC";
 
@@ -43,20 +47,41 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
 
             var sql = $@"
         SELECT
-            Id, UserId, AccountNumber, AccountHolder,
-            BankCode, BankName, Provider, Balance, IsPinned, IsActive,
-            Status, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, DeletedAt, DeletedBy
-        FROM Accounts
+            a.Id, a.UserId, a.AccountNumber, a.AccountHolder,
+            a.BankCode, b.BankName AS BankName, b.LogoUrl,
+            a.Provider, a.Balance, a.IsPinned, a.IsActive,
+
+            a.Status,
+
+            a.CreatedBy,
+
+            u1.FullName AS CreatedByName,
+
+            a.CreatedAt
+        FROM Accounts a
+            LEFT JOIN BankInfos b
+                 ON a.BankCode = b.BankCode
+            LEFT JOIN Users u ON a.UserId = u.Id
+            LEFT JOIN Users u1 ON a.CreatedBy = u1.Id
+            LEFT JOIN Users u2 ON a.UpdatedBy = u2.Id
+            LEFT JOIN Users u3 ON a.DeletedBy = u3.Id        
         WHERE
-            (@UserId IS NULL OR UserId = @UserId)
-            AND (@Provider IS NULL OR Provider = @Provider)
-            AND (@IsActive IS NULL OR IsActive = @IsActive)
+            (@UserId IS NULL OR a.UserId = @UserId)
+            AND (@Provider IS NULL OR a.Provider = @Provider)
+            AND (@IsActive IS NULL OR a.IsActive = @IsActive)
+            AND (
+                 @IsDeleted IS NULL
+                 OR (@IsDeleted = 1 AND a.DeletedAt IS NOT NULL)
+                 OR (@IsDeleted = 0 AND a.DeletedAt IS NULL)
+            )
+            AND (@Status IS NULL OR a.Status = @Status)
             AND (
                 @SearchValue IS NULL
-                OR AccountNumber LIKE '%' + @SearchValue + '%'
-                OR ISNULL(AccountHolder,'') LIKE '%' + @SearchValue + '%'
-                OR ISNULL(BankCode,'') LIKE '%' + @SearchValue + '%'
-                OR ISNULL(BankName,'') LIKE '%' + @SearchValue + '%'
+                OR a.AccountNumber LIKE '%' + @SearchValue + '%'
+                OR ISNULL(a.AccountHolder,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(a.BankCode,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(b.BankName,'') LIKE '%' + @SearchValue + '%'
+                OR u.Email = @SearchValue
             )
         ORDER BY 
             {orderByFull}
@@ -64,48 +89,105 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
         FETCH NEXT @PageSize ROWS ONLY;
 
         SELECT COUNT(1)
-        FROM Accounts
+        FROM Accounts a
+            LEFT JOIN BankInfos b
+                 ON a.BankCode = b.BankCode
+            LEFT JOIN Users u ON a.UserId = u.Id
         WHERE
-            (@UserId IS NULL OR UserId = @UserId)
-            AND (@Provider IS NULL OR Provider = @Provider)
-            AND (@IsActive IS NULL OR IsActive = @IsActive)
+            (@UserId IS NULL OR a.UserId = @UserId)
+            AND (@Provider IS NULL OR a.Provider = @Provider)
+            AND (@IsActive IS NULL OR a.IsActive = @IsActive)
+            AND (
+                 @IsDeleted IS NULL
+                 OR (@IsDeleted = 1 AND a.DeletedAt IS NOT NULL)
+                 OR (@IsDeleted = 0 AND a.DeletedAt IS NULL)
+            )
+            AND (@Status IS NULL OR a.Status = @Status)
             AND (
                 @SearchValue IS NULL
-                OR AccountNumber LIKE '%' + @SearchValue + '%'
-                OR ISNULL(AccountHolder,'') LIKE '%' + @SearchValue + '%'
-                OR ISNULL(BankCode,'') LIKE '%' + @SearchValue + '%'
-                OR ISNULL(BankName,'') LIKE '%' + @SearchValue + '%'
+                OR a.AccountNumber LIKE '%' + @SearchValue + '%'
+                OR ISNULL(a.AccountHolder,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(a.BankCode,'') LIKE '%' + @SearchValue + '%'
+                OR ISNULL(b.BankName,'') LIKE '%' + @SearchValue + '%'
+                OR u.Email = @SearchValue
             );
         ";
 
-            return await QueryPagedAsync<Account>(sql,
+            return await QueryPagedAsync<AccountQueryDto>(sql,
                 new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     UserId = userId,
                     Provider = provider,
+                    SearchValue = searchValue,
                     IsActive = isActive,
-                    SearchValue = searchValue
+                    IsDeleted = isDeleted,
+                    Status = status
                 }
             );
         }
-
-        public async Task<Account> GetByAccountNumberAsync(string accountNumber)
+        public async Task<AccountQueryDto?> GetByIdAsync(Guid id, Guid? userId, bool isAdmin)
         {
-            if (string.IsNullOrWhiteSpace(accountNumber))
-                throw new ArgumentException("Account number cannot be empty", nameof(accountNumber));
+            string sql;
 
-            const string sql = "SELECT * FROM Accounts WHERE AccountNumber = @AccountNumber";
+            if (isAdmin)
+            {
+                sql = $@"SELECT
+                     a.Id, a.UserId, a.AccountNumber, a.AccountHolder,
+                     a.BankCode, b.BankName AS BankName, b.LogoUrl,
+                     a.Provider, a.Balance, a.IsPinned, a.IsActive,
 
-            return await QueryFirstOrDefaultAsync<Account>(sql,
+                     a.Status,
+
+                     a.CreatedBy,
+
+                     u1.FullName AS CreatedByName,
+
+                     a.CreatedAt,
+                     a.UpdatedAt
+                FROM Accounts
+                LEFT JOIN BankInfos b
+                    ON a.BankCode = b.BankCode
+                WHERE a.Id = @Id";
+            }
+            else
+            {
+                sql = $@"SELECT
+                     a.Id, a.UserId, a.AccountNumber, a.AccountHolder,
+                     a.BankCode, b.BankName AS BankName, b.LogoUrl,
+                     a.Provider, a.Balance, a.IsPinned, a.IsActive,
+
+                     a.Status,
+
+                     a.CreatedBy,
+                     a.UpdatedBy,
+                     a.DeletedBy,
+
+                     u1.FullName AS CreatedByName,
+                     u2.FullName AS UpdatedByName,
+                     u3.FullName AS DeletedByName,
+
+                     a.CreatedAt,
+                     a.UpdatedAt,
+                     a.DeletedAt
+                FROM Accounts a
+                LEFT JOIN BankInfos b
+                    ON a.BankCode = b.BankCode
+                WHERE a.Id = @Id
+                     AND a.UserId = @UserId
+                     AND a.DeletedAt IS NULL
+                     AND a.Status = 1
+                ";
+            }
+
+            return await QueryFirstOrDefaultAsync<AccountQueryDto>(sql,
                 new
                 {
-                    AccountNumber = accountNumber
-                }
-            );
+                    Id = id,
+                    UserId = userId
+                });
         }
-
         public async Task<bool> AccountNumberExistsAsync(Guid userId, string accountNumber, string? bankCode, AccountProvider provider, Guid? excludeAccountId)
         {
             if (userId == Guid.Empty)
@@ -117,10 +199,12 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 SELECT TOP 1 1
                 FROM Accounts
                 WHERE UserId = @UserId
-                      AND AccountNumber = @AccountNumber
-                      AND (@BankCode IS NULL OR BankCode = @BankCode)
-                      AND Provider = @Provider
-                      AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
+                     AND AccountNumber = @AccountNumber
+                     AND (@BankCode IS NULL OR BankCode = @BankCode)
+                     AND Provider = @Provider
+                     AND (@ExcludeId IS NULL OR Id <> @ExcludeId)
+                     AND DeletedAt IS NULL
+                     AND Status = 1
                 ";
 
             var count = await QueryFirstOrDefaultAsync<int>(sql,
