@@ -51,12 +51,9 @@ namespace MyWallet.Application.Services
 
             return new GetUserRes
             {
-                UserId = user.Id,
                 Email = user.Email,
                 FullName = user.FullName,
-                GoogleId = user.GoogleId,
                 PictureUrl = user.PictureUrl,
-                SecurityStamp = user.SecurityStamp ?? ""
             };
         }
         public async Task<SignInGoogleRes> SignInGoogle(HttpContext context)
@@ -109,6 +106,11 @@ namespace MyWallet.Application.Services
                     throw;
                 }
             }
+            else
+            {
+                if (user.Status == false)
+                    throw new ApplicationException(ErrorCode.Unauthorized, "Tài khoản đang bị tạm khóa. Vui lòng liên hệ Admin để biết thêm chi tiết.");
+            }
 
             var roles = await _unitOfWork.UserRoles.GetRolesByUserIdAsync(user.Id);
 
@@ -122,11 +124,8 @@ namespace MyWallet.Application.Services
             {
                 UserRes = new()
                 {
-                    UserId = user.Id,
                     Email = user.Email,
                     FullName = user.FullName,
-                    GoogleId = user.GoogleId,
-                    SecurityStamp = user.SecurityStamp ?? "",
                     PictureUrl = user.PictureUrl,
                 },
                 TokenRes = jwt,

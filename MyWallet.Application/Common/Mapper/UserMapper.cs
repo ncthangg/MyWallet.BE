@@ -5,16 +5,18 @@ namespace MyWallet.Application.Common.Mapper
 {
     public static class UserMapper
     {
-        public static GetUserBaseRes ToGetUsersRes(User u)
+        public static GetUserBySystemRes ToGetUsersRes(User u)
         {
-            return new GetUserBaseRes
+            return new GetUserBySystemRes
             {
-                Id = u.Id,
                 UserId = u.Id,
                 Email = u.Email,
                 FullName = u.FullName,
 
+                SecurityStamp = u.SecurityStamp,
+
                 CreatedAt = u.CreatedAt,
+                UpdatedAt = u.UpdatedAt,
                 Status = u.Status,
             };
         }

@@ -15,12 +15,12 @@ namespace MyWallet.Application.Common.Mapper
                 AccountHolder = u.AccountHolder ?? null,
 
                 BankCode = u.BankCode ?? null,
+                NapasBin = u.NapasBin ?? null,
                 BankName = u.BankName ?? null,
                 BankShortName = u.BankShortName ?? null,
                 BankLogoUrl = u.BankLogoUrl ?? null,
 
                 BankIsActive = u.BankIsActive ?? null,
-                BankStatus = u.BankStatus ?? null,
 
                 ProviderId = u.ProviderId,
                 ProviderCode = u.ProviderCode,
@@ -28,14 +28,12 @@ namespace MyWallet.Application.Common.Mapper
                 ProviderLogoUrl = u.ProviderLogoUrl ?? null,
 
                 ProviderIsActive = u.ProviderIsActive,
-                ProviderStatus = u.ProviderStatus,
 
                 Balance = u.Balance ?? null,
 
                 IsPinned = u.IsPinned,
                 IsActive = u.IsActive,
 
-                Status = u.Status,
                 CreatedAt = u.CreatedAt,
             };
         }
@@ -49,6 +47,7 @@ namespace MyWallet.Application.Common.Mapper
                 AccountHolder = u.AccountHolder ?? null,
 
                 BankCode = u.BankCode ?? null,
+                NapasBin = u.NapasBin ?? null,
                 BankName = u.BankName ?? null,
                 BankShortName = u.BankShortName ?? null,
                 BankLogoUrl = u.BankLogoUrl ?? null,

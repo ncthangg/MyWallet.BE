@@ -81,6 +81,16 @@ namespace MyWallet.API.Controllers
                data: null,
                message: SuccessMessages.UpdateSuccess));
         }
+        [HttpPut("{id}/status")]
+        [Authorize]
+        public async Task<IActionResult> PutStatus(Guid id)
+        {
+            await _accountService.PutStatusAsync(id);
+            return Ok(new BaseResponseModel<string>(
+               code: SuccessCode.Success,
+               data: null,
+               message: SuccessMessages.UpdateSuccess));
+        }
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<IActionResult> Delete(Guid id)

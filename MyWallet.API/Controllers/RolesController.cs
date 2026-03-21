@@ -47,15 +47,15 @@ namespace MyWallet.API.Controllers
                data: null,
                message: SuccessMessages.UpdateSuccess));
         }
-        [HttpDelete("{id}")]
-        [Authorize]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            await _roleService.DeleteAsync(id);
-            return Ok(new BaseResponseModel<string>(
-              code: SuccessCode.Success,
-              data: null,
-              message: SuccessMessages.DeleteForeverSuccess));
-        }
+        //[HttpDelete("{id}")]
+        //[Authorize]
+        //public async Task<IActionResult> Delete(Guid id)
+        //{
+        //    await _roleService.DeleteAsync(id);
+        //    return Ok(new BaseResponseModel<string>(
+        //      code: SuccessCode.Success,
+        //      data: null,
+        //      message: SuccessMessages.DeleteForeverSuccess));
+        //}
     }
 }

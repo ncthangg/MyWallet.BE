@@ -34,9 +34,6 @@ namespace MyWallet.Application.Services
                                                                bool? isDeleted,
                                                                bool? status)
         {
-            if (userId == Guid.Empty)
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid userId ID");
-
             if (!_userContext.IsAdmin() && !_userContext.IsUser())
             {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
@@ -123,12 +120,26 @@ namespace MyWallet.Application.Services
             if (exists)
                 throw new ApplicationException(ErrorCode.DuplicateEntry, "Account number already exists");
 
+            var provider = await _unitOfWork.Providers.GetByIdAsync(request.ProviderId)
+                ?? throw new ApplicationException(ErrorCode.NotFound, "Provider not found");
+
+            BankInfo? bank = null;
+
+            if (provider.Code == Domain.Constants.Enum.ProviderCode.BANK)
+            {
+                if (string.IsNullOrWhiteSpace(request.BankCode))
+                    throw new ApplicationException(ErrorCode.ValidationError, "BankCode is required");
+
+                bank = await _unitOfWork.BankInfos.GetByBankCodeAsync(request.BankCode.Trim())
+                    ?? throw new ApplicationException(ErrorCode.NotFound, "Bank not found");
+            }
+
             var account = new Account
             {
                 UserId = userId,
                 AccountNumber = request.AccountNumber.Trim(),
                 AccountHolder = request.AccountHolder?.Trim(),
-                BankCode = request.BankCode?.Trim(),
+                BankCode = bank?.BankCode,
                 Balance = 0,
                 ProviderId = request.ProviderId,
                 IsActive = request.IsActive,
@@ -183,6 +194,24 @@ namespace MyWallet.Application.Services
             await _unitOfWork.Accounts.UpdateAsync(account);
         }
 
+        public async Task PutStatusAsync(Guid id)
+        {
+            if (_userContext.IsAdmin())
+            {
+                if (id == Guid.Empty)
+                    throw new ApplicationException(ErrorCode.ValidationError, "Invalid account ID");
+
+                var account = await _unitOfWork.Accounts.GetByIdAsync(id)
+                    ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
+
+                account.ChangeStatus();
+                await _unitOfWork.Accounts.UpdateAsync(account);
+            }
+            else
+            {
+                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+            }
+        }
         public async Task DeleteAccountAsync(Guid id)
         {
             if (id == Guid.Empty)

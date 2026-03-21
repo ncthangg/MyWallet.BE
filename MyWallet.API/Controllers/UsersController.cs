@@ -27,5 +27,25 @@ namespace MyWallet.API.Controllers
                 data: result,
                 message: null));
         }
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            GetUserBySystemRes result = await _userService.GetByIdAsync(id);
+            return Ok(new BaseResponseModel<GetUserBySystemRes>(
+                code: SuccessCode.Success,
+                data: result,
+                message: null));
+        }
+        [HttpPut("{id}/status")]
+        [Authorize]
+        public async Task<IActionResult> PutStatus(Guid id)
+        {
+            await _userService.PutStatusAsync(id);
+            return Ok(new BaseResponseModel<string>(
+               code: SuccessCode.Success,
+               data: null,
+               message: SuccessMessages.UpdateSuccess));
+        }
     }
 }
