@@ -12,6 +12,8 @@ namespace MyWallet.Application.Contracts.IUnitOfWork
         IRoleRepository Roles { get; }
         IAccountRepository Accounts { get; }
         IQrRepository QRHistories { get; }
+        IQRStyleRepository QRStyles { get; }
+        IQRStyleLibraryRepository QRStyleLibraries { get; }
         IBankInfoRepository BankInfos { get; }
         IProviderRepository Providers { get; }
 

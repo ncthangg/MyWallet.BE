@@ -23,5 +23,8 @@ namespace MyWallet.Application.DTOs.QR.Requests
         /// "VietQR" (default) hoặc "MomoNative" (chỉ app MoMo quét được).
         /// </summary>
         public QrMode? QrMode { get; set; } = Domain.Constants.Enum.QrMode.VietQR;
+        public Guid? StyleId { get; set; }
+        public bool UseDefault { get; set; }
+        public string? StyleJson { get; set; }
     }
 }

@@ -17,13 +17,10 @@ namespace MyWallet.Application.Common.Mapper
 
                 BankCodeSnapshot = q.BankCodeSnapshot ?? null,
                 BankNameSnapshot = q.BankNameSnapshot ?? null,
+                BankShortNameSnapshot = q.BankShortNameSnapshot ?? null,
                 NapasBinSnapshot = q.NapasBinSnapshot ?? null,
 
-                BankShortName = q.BankShortName ?? null,
-                BankLogoUrl = q.BankLogoUrl ?? null,
-
                 QrData = q.QrData ?? null,
-                QrImageUrl = q.QrImageUrl ?? null,
                 TransactionRef = q.TransactionRef ?? null,
 
                 ProviderId = q.ProviderId,
@@ -55,13 +52,10 @@ namespace MyWallet.Application.Common.Mapper
 
                 BankCodeSnapshot = q.BankCodeSnapshot ?? null,
                 BankNameSnapshot = q.BankNameSnapshot ?? null,
+                BankShortNameSnapshot = q.BankShortNameSnapshot ?? null,
                 NapasBinSnapshot = q.NapasBinSnapshot ?? null,
 
-                BankShortName = q.BankShortName ?? null,
-                BankLogoUrl = q.BankLogoUrl ?? null,
-
                 QrData = q.QrData ?? null,
-                QrImageUrl = q.QrImageUrl ?? null,
                 TransactionRef = q.TransactionRef ?? null,
 
                 ProviderId = q.ProviderId,

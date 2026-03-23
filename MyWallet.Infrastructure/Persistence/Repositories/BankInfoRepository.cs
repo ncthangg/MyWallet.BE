@@ -38,7 +38,8 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             Status, 
             CreatedAt, CreatedBy, 
             UpdatedAt, UpdatedBy, 
-            DeletedAt, DeletedBy,
+            DeletedAt, DeletedBy
+        FROM BankInfos
         WHERE 
             (@IsActive IS NULL OR IsActive = @IsActive)
             AND (

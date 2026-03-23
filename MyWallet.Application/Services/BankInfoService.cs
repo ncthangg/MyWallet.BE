@@ -15,14 +15,12 @@ namespace MyWallet.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserContext _userContext;
-        private readonly IIdGenerator _idGenerator;
         private readonly IFileStorageService _fileStorageService;
 
         public BankInfoService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator, IFileStorageService fileStorageService)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _userContext = userContext;
-            _idGenerator = idGenerator;
             _fileStorageService = fileStorageService;
         }
 
@@ -57,39 +55,6 @@ namespace MyWallet.Application.Services
 
             return BankInfoMapper.ToGetBankInfoRes(bank);
         }
-        //public async Task PostAsync(PostBankInfoReq req)
-        //{
-        //    var isAdmin = _userContext.IsAdmin();
-
-        //    if (!isAdmin)
-        //    {
-        //        throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-        //    }
-
-        //    Guid userId = _userContext.UserId
-        //        ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
-
-        //    string? logoUrl = null;
-
-        //    if (req.LogoUrl != null)
-        //    {
-        //        logoUrl = await _fileStorageService.UploadFileAsync(req.LogoUrl, $"{FileStorage.Folders.Assets}/{FileStorage.Folders.Banks}");
-        //    }
-
-        //    var bank = new BankInfo()
-        //    {
-        //        BankCode = req.BankCode,
-        //        NapasBin = req.NapasBin,
-        //        SwiftCode = req.SwiftCode,
-        //        BankName = req.BankName,
-        //        ShortName = req.ShortName,
-        //        LogoUrl = logoUrl ?? null,
-        //        IsActive = req.IsActive,
-        //    };
-        //    bank.Initialize(_idGenerator.NewId(), userId);
-
-        //    await _unitOfWork.BankInfos.AddAsync(bank);
-        //}
         public async Task PutAsync(Guid id, PutBankInfoReq req)
         {
             var isAdmin = _userContext.IsAdmin();
@@ -130,26 +95,6 @@ namespace MyWallet.Application.Services
             oldItem.SetUpdated(userId);
 
             await _unitOfWork.BankInfos.UpdateAsync(oldItem);
-        }
-        public async Task DeleteAsync(Guid id)
-        {
-            var isAdmin = _userContext.IsAdmin();
-
-            if (!isAdmin)
-            {
-                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            }
-
-            if (id == Guid.Empty)
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid bank ID");
-
-            var item = await _unitOfWork.BankInfos.GetByIdAsync(id)
-                ?? throw new ApplicationException(ErrorCode.NotFound, $"Bank {id} not found");
-
-            if (!string.IsNullOrEmpty(item.LogoUrl))
-                await _fileStorageService.DeleteFileAsync(item.LogoUrl);
-
-            await _unitOfWork.BankInfos.DeleteAsync(id);
         }
     }
 }

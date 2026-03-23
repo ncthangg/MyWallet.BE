@@ -1,14 +1,16 @@
 ﻿using MyWallet.Application.Contracts.IRepositories;
 using MyWallet.Application.Contracts.IUnitOfWork;
 using MyWallet.Infrastructure.Persistence.Repositories;
+using MyWallet.Infrastructure.Persistence.MyDbContext;
 using System.Data;
 using IDbConnectionFactory = MyWallet.Application.Contracts.IDbContext.IDbConnectionFactory;
 
 namespace MyWallet.Infrastructure.Persistence.UnitOfWork
 {
-    public class UnitOfWork(IDbConnectionFactory connectionFactory) : IUnitOfWork
+    public class UnitOfWork(IDbConnectionFactory connectionFactory, MyWalletDbContext dbContext) : IUnitOfWork
     {
         private readonly IDbConnectionFactory _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
+        private readonly MyWalletDbContext _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
         private IDbConnection? _connection;
         private IDbTransaction? _transaction;
@@ -19,8 +21,10 @@ namespace MyWallet.Infrastructure.Persistence.UnitOfWork
         private IUserTokenRepository? _userTokenRepository;
         private IUserRoleRepository? _userRoleRepository;
         private IQrRepository? _qrHistoryRepository;
+        private IQRStyleRepository? _qrStyleRepository;
         private IBankInfoRepository? _bankInfoRepository;
         private IProviderRepository? _providerRepository;
+        private IQRStyleLibraryRepository? _qrStyleLibraryRepository;
 
         public IDbConnection Connection
         {
@@ -49,10 +53,17 @@ namespace MyWallet.Infrastructure.Persistence.UnitOfWork
             => _userRoleRepository ??= new UserRoleRepository(this);
         public IQrRepository QRHistories
             => _qrHistoryRepository ??= new QrRepository(this);
+        public IQRStyleRepository QRStyles
+            => _qrStyleRepository ??= new QRStyleRepository(this);
         public IBankInfoRepository BankInfos
             => _bankInfoRepository ??= new BankInfoRepository(this);
         public IProviderRepository Providers
             => _providerRepository ??= new ProviderRepository(this);
+        public IQRStyleLibraryRepository QRStyleLibraries
+            => _qrStyleLibraryRepository ??= new QRStyleLibraryRepository(this, _dbContext);
+
+        // Expose DbContext for repositories that need it
+        public MyWalletDbContext DbContext => _dbContext;
 
         public async Task BeginTransactionAsync()
         {

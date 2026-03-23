@@ -43,46 +43,6 @@ namespace MyWallet.Application.Services
 
             return ProviderMapper.ToGetProviderRes(role);
         }
-        public async Task<Guid> PostAsync(PostProviderReq req)
-        {
-            var isAdmin = _userContext.IsAdmin();
-
-            if (!isAdmin)
-            {
-                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            }
-
-            Guid userId = _userContext.UserId
-                ?? throw new ApplicationException(ErrorCode.Unauthorized, "User ID not found in context!");
-
-            string? logoUrl = null;
-
-            if (req.LogoUrl != null)
-            {
-                logoUrl = await _fileStorageService.UploadFileAsync(req.LogoUrl, $"{FileStorage.Folders.Assets}/{FileStorage.Folders.Banks}");
-            }
-
-            if (!Enum.TryParse<ProviderCode>(req.Code, true, out var providerCode))
-            {
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider code");
-            }
-            var provider = new Provider()
-            {
-                Code = providerCode,
-                Name = req.Name,
-                IsActive = req.IsActive,
-                Status = true,
-                LogoUrl = logoUrl ?? null,
-            };
-            provider.Initialize(_idGenerator.NewId(), userId);
-
-            if (!provider.IsValidProvider())
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider");
-
-            await _unitOfWork.Providers.AddAsync(provider);
-
-            return provider.Id;
-        }
         public async Task PutAsync(Guid id, PutProviderReq req)
         {
             var isAdmin = _userContext.IsAdmin();
@@ -131,26 +91,6 @@ namespace MyWallet.Application.Services
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider");
 
             await _unitOfWork.Providers.UpdateAsync(provider);
-        }
-        public async Task DeleteAsync(Guid id)
-        {
-            var isAdmin = _userContext.IsAdmin();
-
-            if (!isAdmin)
-            {
-                throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            }
-
-            if (id == Guid.Empty)
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider ID");
-
-            var item = await _unitOfWork.Providers.GetByIdAsync(id)
-                ?? throw new ApplicationException(ErrorCode.NotFound, $"ProviderCode {id} not found");
-
-            if (!string.IsNullOrEmpty(item.LogoUrl))
-                await _fileStorageService.DeleteFileAsync(item.LogoUrl);
-
-            await _unitOfWork.Providers.DeleteAsync(id);
         }
     }
 }

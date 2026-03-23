@@ -7,8 +7,6 @@ namespace MyWallet.Application.Contracts.IServices
     {
         Task<IEnumerable<GetProviderRes>> GetAllAsync();
         Task<GetProviderRes> GetByIdAsync(Guid id);
-        Task<Guid> PostAsync(PostProviderReq req);
         Task PutAsync(Guid id, PutProviderReq req);
-        Task DeleteAsync(Guid id);
     }
 }

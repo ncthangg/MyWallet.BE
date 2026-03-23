@@ -15,9 +15,7 @@ namespace MyWallet.Application.DTOs.QR.Queries
         public string? BankCodeSnapshot { get; set; }
         public string? NapasBinSnapshot { get; set; }
         public string? BankNameSnapshot { get; set; }
-
-        public string? BankShortName { get; set; }
-        public string? BankLogoUrl { get; set; }
+        public string? BankShortNameSnapshot { get; set; }
 
         // QR info
         public decimal? Amount { get; set; }
@@ -25,7 +23,6 @@ namespace MyWallet.Application.DTOs.QR.Queries
         public string? Description { get; set; }
 
         public string? QrData { get; set; }
-        public string? QrImageUrl { get; set; }
         public string? TransactionRef { get; set; }
 
         public Guid? ProviderId { get; set; }

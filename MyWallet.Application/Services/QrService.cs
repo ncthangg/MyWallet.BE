@@ -1,7 +1,6 @@
 ﻿using MyWallet.Application.Common.Mapper;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
-using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.Contracts.IUnitOfWork;
 using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Application.DTOs.QR.Requests;
@@ -20,23 +19,32 @@ namespace MyWallet.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserContext _userContext;
-        private readonly IIdGenerator _idGenerator;
 
         private readonly IQrPayloadEngine _qrEngine;
-        private readonly IQrImageRenderer _qrImageRenderer;
 
-
-        public QrService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator,
+        public QrService(IUnitOfWork unitOfWork, IUserContext userContext,
                     IQrPayloadEngine qrEngine,
                     IQrImageRenderer qrImageRenderer)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _userContext = userContext;
-            _idGenerator = idGenerator;
 
             _qrEngine = qrEngine;
-            _qrImageRenderer = qrImageRenderer;
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="sortField"></param>
+        /// <param name="sortDirection"></param>
+        /// <param name="userId"></param>
+        /// <param name="providerId"></param>
+        /// <param name="searchValue"> AccountNumber/ AccountHolder/ BankCode/ NapasBin </param>
+        /// <param name="isDeleted"></param>
+        /// <param name="status"></param>
+        /// <returns></returns>
+        /// <exception cref="ApplicationException"></exception>
         public async Task<PagingVM<GetQrRes>> GetAllAsync(int pageNumber, int pageSize,
                                                           string? sortField, string? sortDirection,
                                                           Guid? userId,
@@ -139,14 +147,7 @@ namespace MyWallet.Application.Services
 
             var payloadResult = _qrEngine.Generate(engineRequest);
 
-            // 4. Render QR image
-            var imageResult = _qrImageRenderer.Render(new QrImageRequest
-            {
-                Payload = payloadResult.Payload,
-                SizePixels = 400,
-            });
-
-            // 5. Persist — chỉ lưu payload string, KHÔNG lưu ảnh vào DB
+            // 4. Persist — chỉ lưu payload string, KHÔNG lưu ảnh vào DB
             var entity = new QRHistory
             {
                 UserId = _userContext.UserId ?? null,
@@ -175,12 +176,15 @@ namespace MyWallet.Application.Services
 
             var id = await _unitOfWork.QRHistories.Post(entity);
 
+            await SaveQrStyleSnapshotAsync(id, request);
+            var style = await _unitOfWork.QRStyles.GetByQrIdAsync(id);
+
             // 6. Return — ảnh generate on-the-fly, không lưu DB
             return new PostQrRes
             {
                 Id = id,
                 QrData = payloadResult.Payload,
-                QrImageUrl = imageResult.DataUri,  // "data:image/png;base64,..."
+                StyleJson = style?.StyleJson,
                 TransactionRef = entity.TransactionRef,
                 IsValid = payloadResult.IsValid,
             };
@@ -192,16 +196,13 @@ namespace MyWallet.Application.Services
             var history = await _unitOfWork.QRHistories.GetByIdAsync(qrHistoryId)
                 ?? throw new ApplicationException(ErrorCode.NotFound, "QR history không tồn tại.");
 
-            var imageResult = _qrImageRenderer.Render(new QrImageRequest
-            {
-                Payload = history.QrData,
-            });
+            var style = await _unitOfWork.QRStyles.GetByQrIdAsync(history.Id);
 
             return new PostQrRes
             {
                 Id = history.Id,
                 QrData = history.QrData,
-                QrImageUrl = imageResult.DataUri,
+                StyleJson = style?.StyleJson,
                 TransactionRef = history.TransactionRef,
                 IsValid = _qrEngine.Verify(history.QrData),
             };
@@ -217,6 +218,43 @@ namespace MyWallet.Application.Services
                 return QrMode.MomoNative;
 
             return QrMode.VietQR;
+        }
+
+        private async Task SaveQrStyleSnapshotAsync(long qrId, PostQrReq request)
+        {
+            if (request.UseDefault)
+                return;
+
+            if (string.IsNullOrWhiteSpace(request.StyleJson))
+                return;
+
+            if (request.StyleId.HasValue)
+            {
+                var styleLib = await _unitOfWork.QRStyleLibraries.GetByIdAsync(request.StyleId.Value)
+                    ?? throw new ApplicationException(ErrorCode.NotFound, "Style library not found");
+
+                if (!styleLib.IsActive)
+                    throw new ApplicationException(ErrorCode.BadRequest, "Style library is inactive");
+
+                if (styleLib.Type == QRStyleType.USER)
+                {
+                    var currentUserId = _userContext.UserId
+                        ?? throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
+
+                    if (styleLib.UserId != currentUserId)
+                        throw new ApplicationException(ErrorCode.Forbidden, "No permission for selected style");
+                }
+            }
+
+            var style = new QRStyle
+            {
+                Id = Guid.NewGuid(),
+                QrId = qrId,
+                StyleJson = request.StyleJson,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await _unitOfWork.QRStyles.AddAsync(style);
         }
 
         private async Task<(string accountNumber,

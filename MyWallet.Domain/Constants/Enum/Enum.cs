@@ -44,4 +44,9 @@
         USD,
         EUR
     }
+    public enum QRStyleType
+    {
+        SYSTEM,
+        USER
+    }
 }

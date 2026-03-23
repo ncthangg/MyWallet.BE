@@ -7,8 +7,6 @@ namespace MyWallet.Application.Contracts.IServices
     {
         Task<IEnumerable<GetRoleRes>> GetAllAsync();
         Task<GetRoleRes> GetByIdAsync(Guid id);
-        Task<Guid> PostAsync(PostRoleReq req);
         Task PutAsync(Guid id, PutRoleReq req);
-        Task DeleteAsync(Guid id);
     }
 }

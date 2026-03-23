@@ -19,6 +19,8 @@ namespace MyWallet.Application.DependencyInjection
             services.AddScoped<IAccountService, AccountService>();
 
             services.AddScoped<IQrService, QrService>();
+            services.AddScoped<IQrStyleLibraryService, QrStyleLibraryService>();
+
             services.AddScoped<IBankInfoService, BankInfoService>();
             services.AddScoped<IProviderService, ProviderService>();
 

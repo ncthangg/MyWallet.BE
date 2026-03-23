@@ -39,17 +39,16 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
         SELECT
             q.Id, q.UserId, u.Email, q.AccountId,
             q.AccountNumberSnapshot, q.AccountHolderSnapshot,
-            q.BankCodeSnapshot, q.NapasBinSnapshot, b.BankName AS BankNameSnapshot, b.ShortName AS BankShortName, b.LogoUrl AS BankLogoUrl,
+            q.BankCodeSnapshot, q.NapasBinSnapshot, q.BankNameSnapshot, q.BankShortNameSnapshot,
             q.ProviderId, p.Code AS ProviderCode, p.Name AS ProviderName, p.LogoUrl AS ProviderLogoUrl,
             q.ReceiverType, q.QrMode, q.Status AS QrStatus,
 
             q.CreatedAt
         FROM QRHistories q
-            LEFT JOIN BankInfos b
-                 ON q.BankCodeSnapshot = b.BankCode
             LEFT JOIN Providers p
                  ON q.ProviderId = p.Id
-            LEFT JOIN Users u ON q.UserId = u.Id
+            LEFT JOIN Users u
+                 ON q.UserId = u.Id
         WHERE
             (@UserId IS NULL OR q.UserId = @UserId)
             AND (
@@ -73,19 +72,18 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
 
         SELECT COUNT(1)
         FROM QRHistories q
-            LEFT JOIN BankInfos b
-                 ON q.BankCodeSnapshot = b.BankCode
             LEFT JOIN Providers p
                  ON q.ProviderId = p.Id
-            LEFT JOIN Users u ON q.UserId = u.Id
+            LEFT JOIN Users u
+                 ON q.UserId = u.Id
         WHERE
             (@UserId IS NULL OR q.UserId = @UserId)
-            AND (@ProviderId IS NULL OR q.ProviderId = @ProviderId)
             AND (
                  @IsDeleted IS NULL
                  OR (@IsDeleted = 1 AND q.DeletedAt IS NOT NULL)
                  OR (@IsDeleted = 0 AND q.DeletedAt IS NULL)
             )
+            AND (@ProviderId IS NULL OR q.ProviderId = @ProviderId)
             AND (
                 @SearchValue IS NULL
                 OR q.AccountNumberSnapshot LIKE '%' + @SearchValue + '%'
@@ -120,16 +118,14 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 sql = $@"SELECT
                 q.Id, q.UserId, u.Email, q.AccountId,
                 q.AccountNumberSnapshot, q.AccountHolderSnapshot,
-                q.BankCodeSnapshot, q.NapasBinSnapshot, b.BankName AS BankNameSnapshot, b.ShortName AS BankShortName, b.LogoUrl AS BankLogoUrl,
+                q.BankCodeSnapshot, q.NapasBinSnapshot, q.BankNameSnapshot, q.BankShortNameSnapshot,
                 q.Amount, q.Currency, q.Description,
-                q.QrData, q.QrImageUrl, q.TransactionRef,
+                q.QrData, q.TransactionRef,
                 q.ProviderId, p.Code AS ProviderCode, p.Name AS ProviderName, p.LogoUrl AS ProviderLogoUrl,
                 q.ReceiverType, q.IsFixedAmount, q.QrMode, q.Status AS QrStatus,
 
                 q.CreatedAt, q.ExpiredAt, q.PaidAt, q.DeletedAt
                 FROM QRHistories q
-                LEFT JOIN BankInfos b
-                    ON q.BankCodeSnapshot = b.BankCode
                 LEFT JOIN Providers p
                      ON q.ProviderId = p.Id
                 LEFT JOIN Users u
@@ -141,16 +137,14 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 sql = $@"SELECT
                 q.Id, q.UserId, q.AccountId,
                 q.AccountNumberSnapshot, q.AccountHolderSnapshot,
-                q.BankCodeSnapshot, q.NapasBinSnapshot, b.BankName AS BankNameSnapshot, b.ShortName AS BankShortName, b.LogoUrl AS BankLogoUrl,
+                q.BankCodeSnapshot, q.NapasBinSnapshot, q.BankNameSnapshot, q.BankShortNameSnapshot,
                 q.Amount, q.Currency, q.Description,
-                q.QrData, q.QrImageUrl, q.TransactionRef,
+                q.QrData, q.TransactionRef,
                 q.ProviderId, p.Code AS ProviderCode, p.Name AS ProviderName, p.LogoUrl AS ProviderLogoUrl,
                 q.ReceiverType, q.IsFixedAmount, q.QrMode, q.Status AS QrStatus,
 
                 q.CreatedAt, q.ExpiredAt, q.PaidAt
                 FROM QRHistories q
-                    LEFT JOIN BankInfos b
-                         ON q.BankCodeSnapshot = b.BankCode
                     LEFT JOIN Providers p
                          ON q.ProviderId = p.Id
                 WHERE q.Id = @Id
@@ -197,7 +191,8 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             var sql = $@"
                 SELECT
                     Id, UserId, AccountId,
-                    AccountNumberSnapshot, AccountHolderSnapshot, BankCodeSnapshot, BankNameSnapshot
+                    AccountNumberSnapshot, AccountHolderSnapshot,
+                    BankCodeSnapshot, NapasBinSnapshot, BankNameSnapshot, BankShortNameSnapshot,
                     Amount, Description, ProviderCode, ReceiverType,
                     IsFixedAmount, IsPaid,
                     CreatedAt, ExpiredAt, PaidAt, DeletedAt
@@ -267,8 +262,9 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
             const string sql = @"
                 SELECT 
                     Id, UserId, AccountId,
-                    AccountNumberSnapshot, AccountHolderSnapshot, BankCodeSnapshot, BankNameSnapshot
-                    Amount, Description, QrData, QrImageUrl, ProviderCode, ReceiverType,
+                    AccountNumberSnapshot, AccountHolderSnapshot,
+                    BankCodeSnapshot, NapasBinSnapshot, BankNameSnapshot, BankShortNameSnapshot,
+                    Amount, Description, QrData, ProviderCode, ReceiverType,
                     IsFixedAmount, IsPaid,
                     CreatedAt, ExpiredAt, PaidAt, DeletedAt
                 FROM QRHistories
@@ -329,9 +325,9 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 (
                     UserId, AccountId,
                     AccountNumberSnapshot, AccountHolderSnapshot,
-                    BankCodeSnapshot, BankNameSnapshot, BankShortNameSnapshot, NapasBinSnapshot,
+                    BankCodeSnapshot, NapasBinSnapshot, BankNameSnapshot, BankShortNameSnapshot,
                     Amount, Currency, Description,
-                    QrData, QrImageUrl, TransactionRef,
+                    QrData, TransactionRef,
                     ProviderId, ReceiverType, IsFixedAmount, QrMode,
                     CreatedAt
                 )
@@ -339,9 +335,9 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
                 (
                     @UserId, @AccountId,
                     @AccountNumberSnapshot, @AccountHolderSnapshot,
-                    @BankCodeSnapshot, @BankNameSnapshot, @BankShortNameSnapshot, @NapasBinSnapshot,
+                    @BankCodeSnapshot, @NapasBinSnapshot, @BankNameSnapshot, @BankShortNameSnapshot,
                     @Amount, @Currency, @Description,
-                    @QrData, @QrImageUrl, @TransactionRef,
+                    @QrData, @TransactionRef,
                     @ProviderId, @ReceiverType, @IsFixedAmount, @QrMode,
                     @CreatedAt
                 );
@@ -356,17 +352,17 @@ namespace MyWallet.Infrastructure.Persistence.Repositories
 
                 req.AccountNumberSnapshot,
                 req.AccountHolderSnapshot,
+
                 req.BankCodeSnapshot,
+                req.NapasBinSnapshot,
                 req.BankNameSnapshot,
                 req.BankShortNameSnapshot,
-                req.NapasBinSnapshot,
 
                 req.Amount,
                 Currency = req.Currency.ToString(),
                 req.Description,
 
                 req.QrData,
-                req.QrImageUrl,
                 req.TransactionRef,
 
                 req.ProviderId,

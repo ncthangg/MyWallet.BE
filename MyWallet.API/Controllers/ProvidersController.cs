@@ -27,16 +27,6 @@ namespace MyWallet.API.Controllers
                 data: result,
                 message: null));
         }
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> Post([FromForm] PostProviderReq request)
-        {
-            await _providerService.PostAsync(request);
-            return Ok(new BaseResponseModel<string>(
-                code: SuccessCode.Success,
-                data: null,
-                message: SuccessMessages.CreateSuccess));
-        }
         [HttpPut("{id}")]
         [Authorize]
         public async Task<IActionResult> Put(Guid id, [FromForm] PutProviderReq request)
@@ -47,15 +37,5 @@ namespace MyWallet.API.Controllers
                data: null,
                message: SuccessMessages.UpdateSuccess));
         }
-        //[HttpDelete("{id}")]
-        //[Authorize]
-        //public async Task<IActionResult> Delete(Guid id)
-        //{
-        //    await _providerService.DeleteAsync(id);
-        //    return Ok(new BaseResponseModel<string>(
-        //      code: SuccessCode.Success,
-        //      data: null,
-        //      message: SuccessMessages.DeleteForeverSuccess));
-        //}
     }
 }
