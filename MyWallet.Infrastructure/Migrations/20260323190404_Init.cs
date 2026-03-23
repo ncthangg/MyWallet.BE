@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -16,7 +17,7 @@ namespace MyWallet.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BankCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    NapasCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    NapasBin = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     SwiftCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     BankName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     ShortName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
@@ -43,6 +44,7 @@ namespace MyWallet.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Code = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LogoUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -140,6 +142,30 @@ namespace MyWallet.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "QRStyleLibraries",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    StyleJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsDefault = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    Type = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QRStyleLibraries", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_QRStyleLibraries_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserRoles",
                 columns: table => new
                 {
@@ -210,15 +236,17 @@ namespace MyWallet.Infrastructure.Migrations
                     AccountHolderSnapshot = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     BankCodeSnapshot = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     BankNameSnapshot = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    BankShortNameSnapshot = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    NapasBinSnapshot = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, defaultValue: "VND"),
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    QRData = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    QRImageUrl = table.Column<string>(type: "nvarchar(MAX)", nullable: true),
+                    QrData = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     TransactionRef = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     ProviderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ReceiverType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     IsFixedAmount = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    QrMode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "CREATED"),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     ExpiredAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -240,6 +268,26 @@ namespace MyWallet.Infrastructure.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "QRStyles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QrId = table.Column<long>(type: "bigint", nullable: false),
+                    StyleJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QRStyles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_QRStyles_QRHistories_QrId",
+                        column: x => x.QrId,
+                        principalTable: "QRHistories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -285,9 +333,11 @@ namespace MyWallet.Infrastructure.Migrations
                 .Annotation("SqlServer:Include", new[] { "BankCode", "ShortName", "LogoUrl" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_BankInfos_NapasCode",
+                name: "IX_BankInfos_NapasBin",
                 table: "BankInfos",
-                column: "NapasBin");
+                column: "NapasBin",
+                unique: true,
+                filter: "[NapasBin] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Providers_Code",
@@ -309,6 +359,34 @@ namespace MyWallet.Infrastructure.Migrations
                 name: "IX_QRHistory_TransactionRef",
                 table: "QRHistories",
                 column: "TransactionRef",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QRStyleLibraries_Type",
+                table: "QRStyleLibraries",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QRStyleLibraries_UserId",
+                table: "QRStyleLibraries",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QRStyleLibraries_UserId_IsDefault",
+                table: "QRStyleLibraries",
+                columns: new[] { "UserId", "IsDefault" },
+                unique: true,
+                filter: "[IsDefault] = 1");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QRStyleLibraries_UserId_Type",
+                table: "QRStyleLibraries",
+                columns: new[] { "UserId", "Type" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QRStyles_QrId",
+                table: "QRStyles",
+                column: "QrId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -360,7 +438,10 @@ namespace MyWallet.Infrastructure.Migrations
                 name: "Providers");
 
             migrationBuilder.DropTable(
-                name: "QRHistories");
+                name: "QRStyleLibraries");
+
+            migrationBuilder.DropTable(
+                name: "QRStyles");
 
             migrationBuilder.DropTable(
                 name: "UserRoles");
@@ -369,10 +450,13 @@ namespace MyWallet.Infrastructure.Migrations
                 name: "UserTokens");
 
             migrationBuilder.DropTable(
-                name: "Accounts");
+                name: "QRHistories");
 
             migrationBuilder.DropTable(
                 name: "Roles");
+
+            migrationBuilder.DropTable(
+                name: "Accounts");
 
             migrationBuilder.DropTable(
                 name: "Users");
