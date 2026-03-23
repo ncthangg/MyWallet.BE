@@ -1,7 +1,7 @@
 ﻿using MyWallet.Application.Contracts.IRepositories;
 using MyWallet.Application.Contracts.IUnitOfWork;
-using MyWallet.Infrastructure.Persistence.Repositories;
 using MyWallet.Infrastructure.Persistence.MyDbContext;
+using MyWallet.Infrastructure.Persistence.Repositories;
 using System.Data;
 using IDbConnectionFactory = MyWallet.Application.Contracts.IDbContext.IDbConnectionFactory;
 

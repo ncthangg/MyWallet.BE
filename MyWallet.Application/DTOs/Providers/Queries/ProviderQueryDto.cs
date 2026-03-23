@@ -1,6 +1,6 @@
 ﻿using MyWallet.Domain.Constants.Enum;
 
-namespace MyWallet.Application.DTOs.Providers.NewFolder
+namespace MyWallet.Application.DTOs.Providers.Queries
 {
     public class ProviderQueryDto
     {

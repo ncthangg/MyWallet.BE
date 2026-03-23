@@ -1,6 +1,6 @@
 ﻿using MyWallet.Application.Contracts.IRepositories;
 using MyWallet.Application.Contracts.IUnitOfWork;
-using MyWallet.Application.DTOs.Providers.NewFolder;
+using MyWallet.Application.DTOs.Providers.Queries;
 using MyWallet.Domain.Entities;
 using MyWallet.Infrastructure.Persistence.Repositories.Base;
 
