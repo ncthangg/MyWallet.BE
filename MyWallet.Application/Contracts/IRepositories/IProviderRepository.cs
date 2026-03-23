@@ -1,5 +1,5 @@
 ﻿using MyWallet.Application.Contracts.IRepositories.Base;
-using MyWallet.Application.DTOs.Providers.NewFolder;
+using MyWallet.Application.DTOs.Providers.Queries;
 using MyWallet.Domain.Entities;
 
 namespace MyWallet.Application.Contracts.IRepositories

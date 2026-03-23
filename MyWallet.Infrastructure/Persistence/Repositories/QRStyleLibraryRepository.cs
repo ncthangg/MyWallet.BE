@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MyWallet.Application.Contracts.IRepositories;
+﻿using MyWallet.Application.Contracts.IRepositories;
 using MyWallet.Application.Contracts.IUnitOfWork;
 using MyWallet.Domain.Constants.Enum;
 using MyWallet.Domain.Entities;

@@ -5,7 +5,6 @@ using MyWallet.Application.DTOs.Base.BaseRes;
 using MyWallet.Application.DTOs.QRStyleLibrary.Requests;
 using MyWallet.Application.DTOs.QRStyleLibrary.Responses;
 using MyWallet.Domain.Constants;
-using MyWallet.Domain.Constants.Enum;
 
 namespace MyWallet.API.Controllers
 {

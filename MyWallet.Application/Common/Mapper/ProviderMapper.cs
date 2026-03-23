@@ -1,4 +1,4 @@
-﻿using MyWallet.Application.DTOs.Providers.NewFolder;
+﻿using MyWallet.Application.DTOs.Providers.Queries;
 using MyWallet.Application.DTOs.Providers.Responses;
 using MyWallet.Domain.Entities;
 

@@ -1,13 +1,8 @@
-﻿using MyWallet.Application.DTOs.Response.Base;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MyWallet.Application.DTOs.Base.BaseRes;
 
 namespace MyWallet.Application.DTOs.Response
 {
-    public class GetUserRoleRes : BaseGetVM
+    public class GetUserRoleRes : BaseGetVM<Guid>
     {
         public required Guid UserId { get; set; }
         public required Guid RoleId { get; set; }

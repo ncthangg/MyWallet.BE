@@ -1,10 +1,7 @@
-﻿using MyWallet.Application.Common.Mapper;
-using MyWallet.Application.Contracts.IContext;
+﻿using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.Contracts.IUnitOfWork;
-using MyWallet.Application.DTOs.Base.BaseRes;
-using MyWallet.Application.DTOs.QR.Responses;
 using MyWallet.Application.DTOs.QRStyleLibrary.Requests;
 using MyWallet.Application.DTOs.QRStyleLibrary.Responses;
 using MyWallet.Domain.Constants;

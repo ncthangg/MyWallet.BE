@@ -1,13 +1,8 @@
-﻿using MyWallet.Application.DTOs.Response.Base;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MyWallet.Application.DTOs.Base.BaseRes;
 
 namespace MyWallet.Application.DTOs.Response
 {
-    public class GetRoleRes : BaseGetVM
+    public class GetRoleRes : BaseGetVM<Guid>
     {
         public required string Name { get; set; }
         public required string NameUpperCase { get; set; }
