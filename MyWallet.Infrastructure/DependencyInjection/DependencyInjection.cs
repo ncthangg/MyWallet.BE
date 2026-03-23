@@ -6,8 +6,10 @@ using MyWallet.Application.Common.Context;
 using MyWallet.Application.Contracts.IConfigs;
 using MyWallet.Application.Contracts.IContext;
 using MyWallet.Application.Contracts.IRepositories;
+using MyWallet.Application.Contracts.IServices;
 using MyWallet.Application.Contracts.ISubServices;
 using MyWallet.Application.Contracts.IUnitOfWork;
+using MyWallet.Application.Services;
 using MyWallet.Domain.Constants;
 using MyWallet.Infrastructure.Persistence.MyDbContext;
 using MyWallet.Infrastructure.Persistence.Repositories;
@@ -46,6 +48,8 @@ namespace MyWallet.Infrastructure.DependencyInjection
             services.AddScoped<IAccountRepository, AccountRepository>();
 
             services.AddScoped<IQrRepository, QrRepository>();
+            services.AddScoped<IQRStyleLibraryRepository, QRStyleLibraryRepository>();
+
             services.AddScoped<IBankInfoRepository, BankInfoRepository>();
             services.AddScoped<IProviderRepository, ProviderRepository>();
 
@@ -80,6 +84,7 @@ namespace MyWallet.Infrastructure.DependencyInjection
             services.AddScoped<RoleSeeder>();
             services.AddScoped<BankSeeder>();
             services.AddScoped<ProviderSeeder>();
+            // optionally register QR style seeder
         }
         private static void AddConfig(this IServiceCollection services, IConfiguration configuration)
         {

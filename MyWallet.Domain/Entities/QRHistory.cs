@@ -21,7 +21,6 @@ namespace MyWallet.Domain.Entities
         public string? Description { get; set; }
 
         public string? QrData { get; set; }
-        public string? QrImageUrl { get; set; }
         public string TransactionRef { get; set; } = null!;
 
         public Guid ProviderId { get; set; }

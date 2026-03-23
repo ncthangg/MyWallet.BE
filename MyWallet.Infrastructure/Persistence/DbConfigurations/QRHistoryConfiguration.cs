@@ -56,9 +56,6 @@ namespace MyWallet.Infrastructure.Persistence.DbConfigurations
             builder.Property(qr => qr.QrData)
                 .HasMaxLength(2000);
 
-            builder.Property(qr => qr.QrImageUrl)
-                .HasColumnType("nvarchar(MAX)");
-
             builder.Property(qr => qr.TransactionRef)
                 .IsRequired()
                 .HasMaxLength(50);
