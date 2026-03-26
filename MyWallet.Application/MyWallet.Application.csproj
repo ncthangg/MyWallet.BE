@@ -23,7 +23,6 @@
   <ItemGroup>
     <Folder Include="Common\Validators\" />
     <Folder Include="DTOs\Auths\Queries\" />
-    <Folder Include="DTOs\Auths\Requests\" />
     <Folder Include="DTOs\Banks\Queries\" />
     <Folder Include="DTOs\QRStyleLibrary\Queries\" />
     <Folder Include="DTOs\Roles\Queries\" />

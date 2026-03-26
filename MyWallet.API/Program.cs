@@ -33,12 +33,6 @@ if (args.Contains("--migrate"))
     return;
 }
 
-using (var scope = app.Services.CreateScope())
-{
-    var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
-    await roleSeeder.SeedAsync();
-}
-
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -64,7 +58,16 @@ if (app.Environment.IsDevelopment())
             // throw; 
         }
     }
+}
 
+using (var scope = app.Services.CreateScope())
+{
+    var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
+    await roleSeeder.SeedAsync();
+}
+
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "My Portfolios API - DEVELOP")
