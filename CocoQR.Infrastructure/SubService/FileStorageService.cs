@@ -27,21 +27,21 @@ namespace CocoQR.Infrastructure.SubService
         {
             _env = environment;
             _logger = logger;
-
             _settings = options.Value;
-
+        }
+        private IAmazonS3 GetClient()
+        {
             var configS3 = new AmazonS3Config
             {
                 ServiceURL = _settings.Endpoint,
                 ForcePathStyle = true
             };
 
-            _client = new AmazonS3Client(
+            return new AmazonS3Client(
                 _settings.AccessKey,
                 _settings.SecretKey,
                 configS3);
         }
-
         public async Task<string> UploadFileAsync(IFormFile file, string folder)
         {
             ValidateFile(file);
@@ -240,7 +240,8 @@ namespace CocoQR.Infrastructure.SubService
                 CannedACL = S3CannedACL.PublicRead
             };
 
-            var transferUtility = new TransferUtility(_client);
+            var client = GetClient();
+            var transferUtility = new TransferUtility(client);
             await transferUtility.UploadAsync(uploadRequest);
 
             var fileUrl = $"{_settings.Endpoint}/{_settings.Bucket}/{folder}/{fileName}";
