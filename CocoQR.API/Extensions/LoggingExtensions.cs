@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using System.Text;
+using static CocoQR.Domain.Constants.FileStorage;
 
 namespace CocoQR.API.Extensions
 {
@@ -23,12 +24,15 @@ namespace CocoQR.API.Extensions
             }
             else
             {
+                var basePath = AppContext.BaseDirectory;
+                var logPath = Environment.GetEnvironmentVariable(EnvKeys.Logs) ?? "logs";
+
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Warning()
                     .Enrich.FromLogContext()
                     .WriteTo.Console()
                     .WriteTo.File(
-                        "logs/log-.txt",
+                        Path.Combine(basePath, logPath, "log-.txt"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 7,
                         encoding: Encoding.UTF8,
