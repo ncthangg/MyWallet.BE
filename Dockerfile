@@ -25,10 +25,14 @@ COPY CocoQR.Infrastructure/ CocoQR.Infrastructure/
 COPY CocoQR.QR_Generator/ CocoQR.QR_Generator/
 
 # Publish
+# RUN dotnet publish CocoQR.API/CocoQR.API.csproj \
+#     -c Release \
+#     -o /app/publish 
 RUN dotnet publish CocoQR.API/CocoQR.API.csproj \
     -c Release \
-    -o /app/publish 
-
+    -o /app/publish && \
+    ls -la /app/publish
+    
 # =========================
 # RUNTIME STAGE
 # =========================
