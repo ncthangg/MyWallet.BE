@@ -48,14 +48,17 @@ namespace CocoQR.Infrastructure.SubService
 
             try
             {
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                var commonFileName = $"{Guid.NewGuid():N}{extension}";
+
                 if (_env.IsProduction())
                 {
-                    await UploadFileToCloudAsync(file, folder);
-                    return await UploadFileToLocalAsync(file, folder);
+                    await UploadFileToCloudAsync(file, folder, commonFileName);
+                    return await UploadFileToLocalAsync(file, folder, commonFileName);
                 }
                 else
                 {
-                    return await UploadFileToLocalAsync(file, folder);
+                    return await UploadFileToLocalAsync(file, folder, commonFileName);
                 }
             }
             catch (DomainException)
@@ -202,17 +205,14 @@ namespace CocoQR.Infrastructure.SubService
             }
         }
 
-        private async Task<string> UploadFileToLocalAsync(IFormFile file, string folder)
+        private async Task<string> UploadFileToLocalAsync(IFormFile file, string folder, string fileName)
         {
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
-
             var uploadPath = Path.Combine(_env.WebRootPath, folder);
-            var relativePath = $"{folder}/{uniqueFileName}";
+            var relativePath = $"{folder}/{fileName}";
 
             Directory.CreateDirectory(uploadPath);
 
-            var physicalPath = Path.Combine(uploadPath, uniqueFileName);
+            var physicalPath = Path.Combine(uploadPath, fileName);
 
             await using (var stream = new FileStream(physicalPath,
                                                      FileMode.CreateNew,
@@ -229,16 +229,15 @@ namespace CocoQR.Infrastructure.SubService
             return relativePath;
         }
 
-        private async Task<string> UploadFileToCloudAsync(IFormFile file, string folder)
+        private async Task<string> UploadFileToCloudAsync(IFormFile file, string folder, string fileName)
         {
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-
             using var stream = file.OpenReadStream();
+            var relativePath = $"{folder}/{fileName}";
 
             var uploadRequest = new TransferUtilityUploadRequest
             {
                 InputStream = stream,
-                Key = $"{folder}/{fileName}",
+                Key = relativePath,
                 BucketName = $"{_settings.Bucket}",
                 CannedACL = S3CannedACL.PublicRead
             };
@@ -250,7 +249,7 @@ namespace CocoQR.Infrastructure.SubService
             var fileUrl = $"{_settings.Endpoint}/{folder}/{fileName}";
             _logger.LogInformation("File uploaded successfully to cloud: {FileName} -> {FileUrl}", file.FileName, fileUrl);
 
-            return fileUrl;
+            return relativePath;
         }
 
         private Task DeleteFileLocalAsync(string filePath)
