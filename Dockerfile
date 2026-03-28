@@ -46,8 +46,7 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 # Set timezone (VN)
 ENV TZ=Asia/Ho_Chi_Minh
 
-COPY --from=build /app/publish/ /app/
-RUN ls -la /app
+COPY --from=build /app/publish .
 
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "CocoQR.API.dll"]
