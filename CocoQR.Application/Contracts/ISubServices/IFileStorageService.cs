@@ -7,6 +7,8 @@ namespace CocoQR.Application.Contracts.ISubServices
         Task<string> UploadFileAsync(IFormFile file, string folder);
         Task<List<string>> UploadFilesAsync(IEnumerable<IFormFile> files, string folder);
 
+        Task UploadLogFileToCloudAsync(string filePath);
+
         Task DeleteFileAsync(string filePath);
         Task DeleteFilesAsync(IEnumerable<string> filePaths);
 

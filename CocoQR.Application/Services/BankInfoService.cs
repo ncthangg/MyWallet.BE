@@ -73,28 +73,45 @@ namespace CocoQR.Application.Services
             var oldItem = await _unitOfWork.BankInfos.GetByIdAsync(id)
                ?? throw new ApplicationException(ErrorCode.NotFound, ErrorMessages.EntityNotFound);
 
-            string? imageUrl = oldItem.LogoUrl;
+            var previousImageUrl = oldItem.LogoUrl;
+            var imageUrl = previousImageUrl;
+            var hasNewUpload = false;
+            var shouldDeletePreviousAfterDbSuccess = false;
 
             if (req.IsDeleteFile == true)
             {
-                if (!string.IsNullOrEmpty(imageUrl))
-                    await _fileStorageService.DeleteFileAsync(imageUrl);
-
                 imageUrl = null;
+                shouldDeletePreviousAfterDbSuccess = !string.IsNullOrWhiteSpace(previousImageUrl);
             }
             else if (req.LogoUrl != null)
             {
-                if (!string.IsNullOrEmpty(imageUrl))
-                    await _fileStorageService.DeleteFileAsync(imageUrl);
-
                 imageUrl = await _fileStorageService.UploadFileAsync(req.LogoUrl, $"{FileStorage.Folders.Assets}/{FileStorage.Folders.Banks}");
+                hasNewUpload = !string.IsNullOrWhiteSpace(imageUrl) && !string.Equals(imageUrl, previousImageUrl, StringComparison.OrdinalIgnoreCase);
+                shouldDeletePreviousAfterDbSuccess = !string.IsNullOrWhiteSpace(previousImageUrl) && hasNewUpload;
             }
 
-            oldItem.LogoUrl = imageUrl;
-            oldItem.IsActive = req.IsActive;
-            oldItem.SetUpdated(userId);
+            try
+            {
+                oldItem.LogoUrl = imageUrl;
+                oldItem.IsActive = req.IsActive;
+                oldItem.SetUpdated(userId);
 
-            await _unitOfWork.BankInfos.UpdateAsync(oldItem);
+                await _unitOfWork.BankInfos.UpdateAsync(oldItem);
+            }
+            catch
+            {
+                if (hasNewUpload && !string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    await _fileStorageService.DeleteFileAsync(imageUrl);
+                }
+
+                throw;
+            }
+
+            if (shouldDeletePreviousAfterDbSuccess && !string.IsNullOrWhiteSpace(previousImageUrl))
+            {
+                await _fileStorageService.DeleteFileAsync(previousImageUrl);
+            }
         }
     }
 }

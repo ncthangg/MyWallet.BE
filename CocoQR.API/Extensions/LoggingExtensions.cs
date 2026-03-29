@@ -1,4 +1,5 @@
 ﻿using Serilog;
+using Serilog.Events;
 using System.Text;
 using static CocoQR.Domain.Constants.FileStorage;
 
@@ -23,53 +24,70 @@ namespace CocoQR.API.Extensions
                 return builder;
             }
 
-            var basePath = AppContext.BaseDirectory;
-            var logPath = Environment.GetEnvironmentVariable(EnvKeys.Logs) ?? "logs";
-
-            var logFolder = Path.Combine(basePath, logPath);
+            var logFolder = ResolveLogFolder(env);
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Info));
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Warning));
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Error));
 
             var loggerConfig = new LoggerConfiguration()
                 .Enrich.FromLogContext()
                 .WriteTo.Console();
 
-            if (env.IsStaging())
+            if (env.IsStaging() || env.IsProduction())
             {
                 loggerConfig
-                    .MinimumLevel.Information()
+                .MinimumLevel.Information()
 
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Information)
                     .WriteTo.File(
-                        Path.Combine(logFolder, "info-.txt"),
+                        Path.Combine(logFolder, Folders.Info, "info-.txt"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 7,
-                        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
-                        encoding: Encoding.UTF8
-                    )
+                        encoding: Encoding.UTF8))
 
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Warning)
                     .WriteTo.File(
-                        Path.Combine(logFolder, "warning-.txt"),
+                        Path.Combine(logFolder, Folders.Warning, "warning-.txt"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 7,
-                        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning,
-                        encoding: Encoding.UTF8
-                    );
-            }
-            else
-            {
-                loggerConfig
-                    .MinimumLevel.Warning()
-                    .Enrich.FromLogContext()
+                        encoding: Encoding.UTF8))
+
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
                     .WriteTo.File(
-                        Path.Combine(logFolder, "log-.txt"),
+                        Path.Combine(logFolder, Folders.Error, "error-.txt"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 7,
-                        encoding: Encoding.UTF8,
-                        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
-                    )
-                    .CreateLogger();
+                        encoding: Encoding.UTF8));
             }
 
-            builder.Host.UseSerilog();
+            Log.Logger = loggerConfig.CreateLogger();
+            builder.Host.UseSerilog(Log.Logger, dispose: true);
             return builder;
+        }
+
+        private static string ResolveLogFolder(IWebHostEnvironment env)
+        {
+            var configuredLogPath = Environment.GetEnvironmentVariable(EnvKeys.Logs);
+            if (!string.IsNullOrWhiteSpace(configuredLogPath))
+            {
+                if (Path.IsPathRooted(configuredLogPath))
+                {
+                    return Path.GetFullPath(configuredLogPath);
+                }
+
+                return Path.GetFullPath(Path.Combine(ResolveEnvironmentRoot(env), configuredLogPath));
+            }
+
+            return Path.Combine(ResolveEnvironmentRoot(env), Folders.Logs);
+        }
+
+        private static string ResolveEnvironmentRoot(IWebHostEnvironment env)
+        {
+            var storageRoot = Environment.GetEnvironmentVariable(EnvKeys.Root) ?? "/data/cocoqr";
+            return Path.GetFullPath(Path.Combine(storageRoot, env.EnvironmentName.ToLowerInvariant()));
         }
     }
 }

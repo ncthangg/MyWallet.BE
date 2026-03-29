@@ -1,20 +1,23 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using CocoQR.Application.Common.Context;
+﻿using CocoQR.Application.Common.Context;
 using CocoQR.Application.Contracts.IConfigs;
 using CocoQR.Application.Contracts.IContext;
 using CocoQR.Application.Contracts.IRepositories;
 using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Application.Contracts.IUnitOfWork;
 using CocoQR.Domain.Constants;
+using CocoQR.Infrastructure.BackgroundServices;
 using CocoQR.Infrastructure.Persistence.MyDbContext;
 using CocoQR.Infrastructure.Persistence.Repositories;
 using CocoQR.Infrastructure.Persistence.Seeder;
 using CocoQR.Infrastructure.Persistence.UnitOfWork;
 using CocoQR.Infrastructure.Security;
 using CocoQR.Infrastructure.SubService;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using IDbConnectionFactory = CocoQR.Application.Contracts.IDbContext.IDbConnectionFactory;
 
@@ -22,12 +25,13 @@ namespace CocoQR.Infrastructure.DependencyInjection
 {
     public static class DependencyInjection
     {
-        public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+        public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration, IHostEnvironment env)
         {
             services.AddDbConnectionFactory();
             services.AddRepo();
             services.AddDatabase(configuration);
             services.AddSubServices();
+            services.AddBackgroundServices(env);
             services.AddSeeder();
             services.AddJWTConfig(configuration);
             services.AddDOConfig(configuration);
@@ -75,8 +79,18 @@ namespace CocoQR.Infrastructure.DependencyInjection
 
             services.AddScoped<IGoogleService, GoogleService>();
             services.AddScoped<ITokenService, TokenService>();
-            services.AddScoped<IFileStorageService, FileStorageService>();
+            services.AddSingleton<IFileCleanupQueue, FileCleanupQueue>();
+            services.AddScoped<FileStorageService>();
+            services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<FileStorageService>());
             services.AddScoped<IIdGenerator, SqlServerIdGenerator>();
+        }
+        private static void AddBackgroundServices(this IServiceCollection services, IHostEnvironment env)
+        {
+            if (env.IsStaging() || env.IsProduction())
+            {
+                services.AddHostedService<FileCleanupBackgroundService>();
+                services.AddHostedService<LogUploadService>();
+            }
         }
         private static void AddSeeder(this IServiceCollection services)
         {

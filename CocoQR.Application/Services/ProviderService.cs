@@ -60,36 +60,55 @@ namespace CocoQR.Application.Services
             var provider = await _unitOfWork.Providers.GetByIdAsync(id)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"ProviderCode {id} not found");
 
-            string? imageUrl = provider.LogoUrl;
-
-            if (req.IsDeleteFile == true)
-            {
-                if (!string.IsNullOrEmpty(imageUrl))
-                    await _fileStorageService.DeleteFileAsync(imageUrl);
-
-                imageUrl = null;
-            }
-            else if (req.LogoUrl != null)
-            {
-                if (!string.IsNullOrEmpty(imageUrl))
-                    await _fileStorageService.DeleteFileAsync(imageUrl);
-
-                imageUrl = await _fileStorageService.UploadFileAsync(req.LogoUrl, $"{FileStorage.Folders.Assets}/{FileStorage.Folders.Providers}");
-            }
             if (!Enum.TryParse<ProviderCode>(req.Code, true, out var providerCode))
             {
                 throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider code");
             }
-            provider.Code = providerCode;
-            provider.Name = req.Name;
-            provider.IsActive = req.IsActive;
-            provider.LogoUrl = imageUrl;
-            provider.SetUpdated(userId);
 
-            if (!provider.IsValidProvider())
-                throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider");
+            var previousImageUrl = provider.LogoUrl;
+            var imageUrl = previousImageUrl;
+            var hasNewUpload = false;
+            var shouldDeletePreviousAfterDbSuccess = false;
 
-            await _unitOfWork.Providers.UpdateAsync(provider);
+            if (req.IsDeleteFile == true)
+            {
+                imageUrl = null;
+                shouldDeletePreviousAfterDbSuccess = !string.IsNullOrWhiteSpace(previousImageUrl);
+            }
+            else if (req.LogoUrl != null)
+            {
+                imageUrl = await _fileStorageService.UploadFileAsync(req.LogoUrl, $"{FileStorage.Folders.Assets}/{FileStorage.Folders.Providers}");
+                hasNewUpload = !string.IsNullOrWhiteSpace(imageUrl) && !string.Equals(imageUrl, previousImageUrl, StringComparison.OrdinalIgnoreCase);
+                shouldDeletePreviousAfterDbSuccess = !string.IsNullOrWhiteSpace(previousImageUrl) && hasNewUpload;
+            }
+
+            try
+            {
+                provider.Code = providerCode;
+                provider.Name = req.Name;
+                provider.IsActive = req.IsActive;
+                provider.LogoUrl = imageUrl;
+                provider.SetUpdated(userId);
+
+                if (!provider.IsValidProvider())
+                    throw new ApplicationException(ErrorCode.ValidationError, "Invalid provider");
+
+                await _unitOfWork.Providers.UpdateAsync(provider);
+            }
+            catch
+            {
+                if (hasNewUpload && !string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    await _fileStorageService.DeleteFileAsync(imageUrl);
+                }
+
+                throw;
+            }
+
+            if (shouldDeletePreviousAfterDbSuccess && !string.IsNullOrWhiteSpace(previousImageUrl))
+            {
+                await _fileStorageService.DeleteFileAsync(previousImageUrl);
+            }
         }
     }
 }
