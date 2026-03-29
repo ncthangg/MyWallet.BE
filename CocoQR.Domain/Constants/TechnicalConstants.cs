@@ -71,7 +71,6 @@
             public const string Logs = "logs";
 
             public const string Info = "information";
-            public const string LegacyInfo = "log";
             public const string Warning = "warning";
             public const string Error = "error";
         }

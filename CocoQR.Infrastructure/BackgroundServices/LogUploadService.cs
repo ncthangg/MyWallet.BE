@@ -7,7 +7,7 @@ namespace CocoQR.Infrastructure.BackgroundServices
 {
     public class LogUploadService : BackgroundService
     {
-        private static readonly string[] LogLevelFolders = { Folders.Info, Folders.LegacyInfo, Folders.Warning, Folders.Error };
+        private static readonly string[] LogLevelFolders = { Folders.Info, Folders.Warning, Folders.Error };
 
         private readonly IHostEnvironment _env;
         private readonly ILogger<LogUploadService> _logger;

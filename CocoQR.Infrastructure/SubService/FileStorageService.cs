@@ -56,6 +56,9 @@ namespace CocoQR.Infrastructure.SubService
                 var fileName = $"{Guid.NewGuid():N}{extension}";
 
                 var relativePath = $"{folder}/{fileName}";
+
+                _logger.LogInformation($"relativePath: {relativePath}");
+                _logger.LogInformation($"_env: {_env.EnvironmentName}");
                 if (_env.IsDevelopment())
                 {
                     return await UploadFileToLocalAsync(file, relativePath);
@@ -63,10 +66,12 @@ namespace CocoQR.Infrastructure.SubService
 
                 if (ShouldUseCloudStorage())
                 {
+                    _logger.LogInformation($"ShouldUseCloudStorage: {ShouldUseCloudStorage()}");
                     await UploadFileToCloudAsync(file, relativePath);
 
                     try
                     {
+                        _logger.LogInformation("UploadFileToLocalAsync");
                         return await UploadFileToLocalAsync(file, relativePath);
                     }
                     catch (Exception localEx)
@@ -87,13 +92,10 @@ namespace CocoQR.Infrastructure.SubService
 
                 throw new DomainException(ErrorCode.InternalError, "Unsupported environment for file upload");
             }
-            catch (DomainException)
-            {
-                throw;
-            }
             catch (Exception ex)
             {
-                throw new DomainException(ErrorCode.InternalError, "Failed to upload file", ex);
+                _logger.LogError(ex, "Failed to upload file");
+                throw new DomainException(ErrorCode.InternalError, "Failed to upload file");
             }
         }
         public async Task DeleteFileAsync(string filePath)
