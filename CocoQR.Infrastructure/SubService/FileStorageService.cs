@@ -40,10 +40,13 @@ namespace CocoQR.Infrastructure.SubService
 
         private IAmazonS3 GetClient()
         {
+            var serviceUrl = GetNormalizedEndpoint();
+            var usePathStyle = ShouldUsePathStyle(serviceUrl);
+
             var configS3 = new AmazonS3Config
             {
-                ServiceURL = _settings.Endpoint,
-                ForcePathStyle = true
+                ServiceURL = serviceUrl,
+                ForcePathStyle = usePathStyle
             };
 
             return new AmazonS3Client(
@@ -371,7 +374,7 @@ namespace CocoQR.Infrastructure.SubService
             var transferUtility = new TransferUtility(client);
             await transferUtility.UploadAsync(uploadRequest);
 
-            var url = $"{_settings.Endpoint}/{key}";
+            var url = BuildPublicObjectUrl(key);
             _logger.LogInformation("Uploaded cloud: {Url}", url);
         }
 
@@ -469,6 +472,63 @@ namespace CocoQR.Infrastructure.SubService
             }
 
             return $"{envPrefix}{normalized}";
+        }
+
+        private string BuildPublicObjectUrl(string key)
+        {
+            var endpoint = GetNormalizedEndpoint();
+            return $"{endpoint}/{NormalizePath(key)}";
+        }
+
+        private string GetNormalizedEndpoint()
+        {
+            var rawEndpoint = (_settings.Endpoint ?? string.Empty).Trim().TrimEnd('/');
+            if (!Uri.TryCreate(rawEndpoint, UriKind.Absolute, out var endpointUri))
+            {
+                return rawEndpoint;
+            }
+
+            var bucket = (_settings.Bucket ?? string.Empty).Trim().Trim('/');
+            var cleanedPath = endpointUri.AbsolutePath.Trim('/');
+
+            // Keep endpoint host as configured and remove accidental '/{bucket}' path suffix to avoid duplicated bucket folder.
+            if (!string.IsNullOrWhiteSpace(bucket))
+            {
+                if (cleanedPath.Equals(bucket, StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanedPath = string.Empty;
+                }
+                else if (cleanedPath.StartsWith($"{bucket}/", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanedPath = cleanedPath[(bucket.Length + 1)..];
+                }
+            }
+
+            var builder = new UriBuilder(endpointUri)
+            {
+                Path = string.IsNullOrWhiteSpace(cleanedPath) ? string.Empty : cleanedPath,
+                Query = string.Empty,
+                Fragment = string.Empty
+            };
+
+            return builder.Uri.ToString().TrimEnd('/');
+        }
+
+        private bool ShouldUsePathStyle(string serviceUrl)
+        {
+            if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var endpointUri))
+            {
+                return true;
+            }
+
+            var bucket = (_settings.Bucket ?? string.Empty).Trim().Trim('/');
+            if (string.IsNullOrWhiteSpace(bucket))
+            {
+                return true;
+            }
+
+            // If endpoint is already bucket-subdomain style, avoid adding bucket in request path.
+            return !endpointUri.Host.StartsWith($"{bucket}.", StringComparison.OrdinalIgnoreCase);
         }
 
         private string StripEnvironmentPrefix(string path)
