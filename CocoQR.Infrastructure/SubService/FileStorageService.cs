@@ -41,12 +41,11 @@ namespace CocoQR.Infrastructure.SubService
         private IAmazonS3 GetClient()
         {
             var serviceUrl = GetNormalizedEndpoint();
-            var usePathStyle = ShouldUsePathStyle(serviceUrl);
 
             var configS3 = new AmazonS3Config
             {
                 ServiceURL = serviceUrl,
-                ForcePathStyle = usePathStyle
+                ForcePathStyle = true
             };
 
             return new AmazonS3Client(
@@ -512,23 +511,6 @@ namespace CocoQR.Infrastructure.SubService
             };
 
             return builder.Uri.ToString().TrimEnd('/');
-        }
-
-        private bool ShouldUsePathStyle(string serviceUrl)
-        {
-            if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var endpointUri))
-            {
-                return true;
-            }
-
-            var bucket = (_settings.Bucket ?? string.Empty).Trim().Trim('/');
-            if (string.IsNullOrWhiteSpace(bucket))
-            {
-                return true;
-            }
-
-            // If endpoint is already bucket-subdomain style, avoid adding bucket in request path.
-            return !endpointUri.Host.StartsWith($"{bucket}.", StringComparison.OrdinalIgnoreCase);
         }
 
         private string StripEnvironmentPrefix(string path)
