@@ -27,8 +27,8 @@ namespace CocoQR.Infrastructure.SubService
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
 
-            var key = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(key))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 throw new ArgumentException("Path is required", nameof(path));
 
             if (stream.CanSeek)
@@ -39,7 +39,7 @@ namespace CocoQR.Infrastructure.SubService
             var uploadRequest = new TransferUtilityUploadRequest
             {
                 InputStream = stream,
-                Key = key,
+                Key = storagePath,
                 BucketName = _settings.Bucket,
                 CannedACL = S3CannedACL.PublicRead
             };
@@ -52,14 +52,14 @@ namespace CocoQR.Infrastructure.SubService
         {
             EnsureConfigured();
 
-            var key = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(key))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 return;
 
             var request = new DeleteObjectRequest
             {
                 BucketName = _settings.Bucket,
-                Key = key
+                Key = storagePath
             };
 
             await GetClient().DeleteObjectAsync(request);
@@ -67,28 +67,28 @@ namespace CocoQR.Infrastructure.SubService
 
         public string GetPublicUrl(string path)
         {
-            var key = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(key))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 return string.Empty;
 
-            var endpoint = GetNormalizedEndpoint();
-            return $"{endpoint}/{key}";
+            var endpoint = GetPublicBaseUrl();
+            return $"{endpoint}/{storagePath}";
         }
 
         private IAmazonS3 GetClient()
         {
             var configS3 = new AmazonS3Config
             {
-                ServiceURL = GetS3ServiceEndpoint(),
+                ServiceURL = GetServiceEndpoint(),
                 ForcePathStyle = true
             };
 
             return new AmazonS3Client(_settings.AccessKey, _settings.SecretKey, configS3);
         }
 
-        private string GetS3ServiceEndpoint()
+        private string GetServiceEndpoint()
         {
-            var normalizedEndpoint = GetNormalizedEndpoint();
+            var normalizedEndpoint = GetPublicBaseUrl();
             if (!Uri.TryCreate(normalizedEndpoint, UriKind.Absolute, out var endpointUri))
             {
                 return normalizedEndpoint;
@@ -122,7 +122,7 @@ namespace CocoQR.Infrastructure.SubService
             return normalizedEndpoint;
         }
 
-        private string GetNormalizedEndpoint()
+        private string GetPublicBaseUrl()
         {
             var rawEndpoint = (_settings.Endpoint ?? string.Empty).Trim().TrimEnd('/');
             if (!Uri.TryCreate(rawEndpoint, UriKind.Absolute, out var endpointUri))
@@ -153,6 +153,11 @@ namespace CocoQR.Infrastructure.SubService
             };
 
             return builder.Uri.ToString().TrimEnd('/');
+        }
+
+        private static string BuildStoragePath(string path)
+        {
+            return NormalizePath(path);
         }
 
         private void EnsureConfigured()

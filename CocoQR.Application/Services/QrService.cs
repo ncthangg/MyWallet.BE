@@ -84,18 +84,16 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                list = items.Select(p => QrMapper.ToGetQrHistoryByAdminRes(p)).ToList();
+                list = items.Select(p => QrMapper.ToGetQrHistoryByAdminRes(p, _fileStorageService)).ToList();
             }
             else if (_userContext.IsUser())
             {
-                list = items.Select(p => QrMapper.ToGetQrHistoryRes(p)).ToList();
+                list = items.Select(p => QrMapper.ToGetQrHistoryRes(p, _fileStorageService)).ToList();
             }
             else
             {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
             }
-
-            list = list.Select(ResolveLogoUrls).ToList();
 
             return new PagingVM<GetQrRes>
             {
@@ -118,11 +116,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                return ResolveLogoUrls(QrMapper.ToGetQrHistoryByAdminRes(account));
+                return QrMapper.ToGetQrHistoryByAdminRes(account, _fileStorageService);
             }
             else if (_userContext.IsUser())
             {
-                return ResolveLogoUrls(QrMapper.ToGetQrHistoryRes(account));
+                return QrMapper.ToGetQrHistoryRes(account, _fileStorageService);
             }
             else
             {
@@ -357,16 +355,6 @@ namespace CocoQR.Application.Services
                 throw new ApplicationException(ErrorCode.ServiceUnavailable, "Phương thức thanh toán đang bảo trì.");
 
             return provider;
-        }
-
-        private GetQrRes ResolveLogoUrls(GetQrRes item)
-        {
-            if (!string.IsNullOrWhiteSpace(item.ProviderLogoUrl))
-            {
-                item.ProviderLogoUrl = _fileStorageService.GetFileUrl(item.ProviderLogoUrl);
-            }
-
-            return item;
         }
         #endregion
     }

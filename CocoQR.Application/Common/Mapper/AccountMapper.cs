@@ -1,11 +1,12 @@
 ﻿using CocoQR.Application.DTOs.Accounts.Queries;
 using CocoQR.Application.DTOs.Accounts.Responses;
+using CocoQR.Application.Contracts.ISubServices;
 
 namespace CocoQR.Application.Common.Mapper
 {
     public class AccountMapper
     {
-        public static GetAccountRes ToGetAccountRes(AccountQueryDto u)
+        public static GetAccountRes ToGetAccountRes(AccountQueryDto u, IFileStorageService? fileStorageService = null)
         {
             return new GetAccountRes
             {
@@ -18,14 +19,14 @@ namespace CocoQR.Application.Common.Mapper
                 NapasBin = u.NapasBin ?? null,
                 BankName = u.BankName ?? null,
                 BankShortName = u.BankShortName ?? null,
-                BankLogoUrl = u.BankLogoUrl ?? null,
+                BankLogoUrl = BaseMapper.ResolveFileUrl(u.BankLogoUrl, fileStorageService),
 
                 BankIsActive = u.BankIsActive ?? null,
 
                 ProviderId = u.ProviderId,
                 ProviderCode = u.ProviderCode,
                 ProviderName = u.ProviderName ?? null,
-                ProviderLogoUrl = u.ProviderLogoUrl ?? null,
+                ProviderLogoUrl = BaseMapper.ResolveFileUrl(u.ProviderLogoUrl, fileStorageService),
 
                 ProviderIsActive = u.ProviderIsActive,
 
@@ -37,7 +38,7 @@ namespace CocoQR.Application.Common.Mapper
                 CreatedAt = u.CreatedAt,
             };
         }
-        public static GetAccountRes ToGetAccountByAdminRes(AccountQueryDto u)
+        public static GetAccountRes ToGetAccountByAdminRes(AccountQueryDto u, IFileStorageService? fileStorageService = null)
         {
             return new GetAccountRes
             {
@@ -50,7 +51,7 @@ namespace CocoQR.Application.Common.Mapper
                 NapasBin = u.NapasBin ?? null,
                 BankName = u.BankName ?? null,
                 BankShortName = u.BankShortName ?? null,
-                BankLogoUrl = u.BankLogoUrl ?? null,
+                BankLogoUrl = BaseMapper.ResolveFileUrl(u.BankLogoUrl, fileStorageService),
 
                 BankIsActive = u.BankIsActive ?? null,
                 BankStatus = u.BankStatus ?? null,
@@ -58,7 +59,7 @@ namespace CocoQR.Application.Common.Mapper
                 ProviderId = u.ProviderId,
                 ProviderCode = u.ProviderCode,
                 ProviderName = u.ProviderName ?? null,
-                ProviderLogoUrl = u.ProviderLogoUrl ?? null,
+                ProviderLogoUrl = BaseMapper.ResolveFileUrl(u.ProviderLogoUrl, fileStorageService),
 
                 ProviderIsActive = u.ProviderIsActive,
                 ProviderStatus = u.ProviderStatus,

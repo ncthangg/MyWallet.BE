@@ -1,6 +1,7 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using CocoQR.Application.Contracts.ISubServices;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -8,19 +9,20 @@ namespace CocoQR.Infrastructure.SubService
 {
     public class CloudinaryStorage : ICloudStorage
     {
-        private readonly Cloudinary _cloudinary;
         private readonly CloudinarySettings _settings;
+        private readonly IHostEnvironment _hostEnvironment;
         private readonly ILogger<CloudinaryStorage> _logger;
         private readonly bool _isValid;
 
-        public CloudinaryStorage(IOptions<CloudinarySettings> options, ILogger<CloudinaryStorage> logger)
+        public CloudinaryStorage(
+            IOptions<CloudinarySettings> options,
+            IHostEnvironment hostEnvironment,
+            ILogger<CloudinaryStorage> logger)
         {
             _settings = options.Value;
+            _hostEnvironment = hostEnvironment;
             _logger = logger;
             _isValid = ValidateSettings();
-
-            var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
-            _cloudinary = new Cloudinary(account);
         }
 
         public async Task UploadAsync(Stream stream, string path)
@@ -30,8 +32,8 @@ namespace CocoQR.Infrastructure.SubService
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
 
-            var normalizedPath = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(normalizedPath))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 throw new ArgumentException("Path is required", nameof(path));
 
             if (stream.CanSeek)
@@ -41,14 +43,14 @@ namespace CocoQR.Infrastructure.SubService
 
             var uploadParams = new RawUploadParams
             {
-                File = new FileDescription(Path.GetFileName(normalizedPath), stream),
-                PublicId = RemoveExtension(normalizedPath),
+                File = new FileDescription(Path.GetFileName(storagePath), stream),
+                PublicId = GetPublicId(storagePath),
                 Overwrite = true,
                 UniqueFilename = false,
                 UseFilename = false
             };
 
-            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            var uploadResult = await GetClient().UploadAsync(uploadParams);
             if (uploadResult.Error != null)
             {
                 throw new InvalidOperationException($"Cloudinary upload failed: {uploadResult.Error.Message}");
@@ -59,16 +61,16 @@ namespace CocoQR.Infrastructure.SubService
         {
             EnsureConfigured();
 
-            var normalizedPath = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(normalizedPath))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 return;
 
-            var deletionParams = new DeletionParams(RemoveExtension(normalizedPath))
+            var deletionParams = new DeletionParams(GetPublicId(storagePath))
             {
                 ResourceType = ResourceType.Raw
             };
 
-            var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+            var deletionResult = await GetClient().DestroyAsync(deletionParams);
             if (deletionResult.Error != null)
             {
                 throw new InvalidOperationException($"Cloudinary delete failed: {deletionResult.Error.Message}");
@@ -77,17 +79,11 @@ namespace CocoQR.Infrastructure.SubService
 
         public string GetPublicUrl(string path)
         {
-            var normalizedPath = NormalizePath(path);
-            if (string.IsNullOrWhiteSpace(normalizedPath))
+            var storagePath = BuildStoragePath(path);
+            if (string.IsNullOrWhiteSpace(storagePath))
                 return string.Empty;
 
-            var endpoint = (_settings.CdnEndpoint ?? string.Empty).Trim().TrimEnd('/');
-            if (!string.IsNullOrWhiteSpace(endpoint))
-            {
-                return $"{endpoint}/{normalizedPath}";
-            }
-
-            return normalizedPath;
+            return $"{GetPublicBaseUrl()}/{storagePath}";
         }
 
         private void EnsureConfigured()
@@ -120,6 +116,12 @@ namespace CocoQR.Infrastructure.SubService
                 isValid = false;
             }
 
+            if (string.IsNullOrWhiteSpace(_settings.ProjectName))
+            {
+                _logger.LogError("Cloudinary ProjectName missing");
+                isValid = false;
+            }
+
             if (!isValid)
             {
                 _logger.LogWarning("Cloudinary storage disabled due to invalid config");
@@ -128,7 +130,52 @@ namespace CocoQR.Infrastructure.SubService
             return isValid;
         }
 
-        private static string RemoveExtension(string path)
+        private Cloudinary GetClient()
+        {
+            var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
+            return new Cloudinary(account);
+        }
+
+        private string BuildStoragePath(string path)
+        {
+            var normalizedPath = NormalizePath(path);
+            if (string.IsNullOrWhiteSpace(normalizedPath))
+            {
+                return string.Empty;
+            }
+
+            var envSegment = NormalizePath(_hostEnvironment.EnvironmentName.ToLowerInvariant());
+            var projectSegment = NormalizePath(_settings.ProjectName);
+
+            if (!string.IsNullOrWhiteSpace(envSegment)
+                && !normalizedPath.StartsWith($"{envSegment}/", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(normalizedPath, envSegment, StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedPath = $"{envSegment}/{normalizedPath}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(projectSegment)
+                && !normalizedPath.StartsWith($"{projectSegment}/", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(normalizedPath, projectSegment, StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedPath = $"{projectSegment}/{normalizedPath}";
+            }
+
+            return normalizedPath;
+        }
+
+        private string GetPublicBaseUrl()
+        {
+            var configuredBaseUrl = (_settings.BaseUrl ?? string.Empty).Trim().TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
+            {
+                return configuredBaseUrl;
+            }
+
+            return $"https://res.cloudinary.com/{NormalizePath(_settings.CloudName)}";
+        }
+
+        private static string GetPublicId(string path)
         {
             var extension = Path.GetExtension(path);
             return string.IsNullOrWhiteSpace(extension)

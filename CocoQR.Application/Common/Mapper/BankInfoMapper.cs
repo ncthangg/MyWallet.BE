@@ -1,11 +1,12 @@
 ﻿using CocoQR.Application.DTOs.Banks.Responses;
+using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Domain.Entities;
 
 namespace CocoQR.Application.Common.Mapper
 {
     public class BankInfoMapper
     {
-        public static GetBankInfoRes ToGetBankInfoRes(BankInfo u)
+        public static GetBankInfoRes ToGetBankInfoRes(BankInfo u, IFileStorageService? fileStorageService = null)
         {
             return new GetBankInfoRes
             {
@@ -16,7 +17,7 @@ namespace CocoQR.Application.Common.Mapper
 
                 BankName = u.BankName,
                 ShortName = u.ShortName,
-                LogoUrl = u.LogoUrl,
+                LogoUrl = BaseMapper.ResolveFileUrl(u.LogoUrl, fileStorageService),
                 IsActive = u.IsActive,
 
                 Status = u.Status,

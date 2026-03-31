@@ -61,18 +61,16 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                list = items.Select(p => AccountMapper.ToGetAccountByAdminRes(p)).ToList();
+                list = items.Select(p => AccountMapper.ToGetAccountByAdminRes(p, _fileStorageService)).ToList();
             }
             else if (_userContext.IsUser())
             {
-                list = items.Select(p => AccountMapper.ToGetAccountRes(p)).ToList();
+                list = items.Select(p => AccountMapper.ToGetAccountRes(p, _fileStorageService)).ToList();
             }
             else
             {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
             }
-
-            list = list.Select(ResolveLogoUrls).ToList();
 
             return new PagingVM<GetAccountRes>
             {
@@ -95,11 +93,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                return ResolveLogoUrls(AccountMapper.ToGetAccountByAdminRes(account));
+                return AccountMapper.ToGetAccountByAdminRes(account, _fileStorageService);
             }
             else if (_userContext.IsUser())
             {
-                return ResolveLogoUrls(AccountMapper.ToGetAccountRes(account));
+                return AccountMapper.ToGetAccountRes(account, _fileStorageService);
             }
             else
             {
@@ -225,23 +223,6 @@ namespace CocoQR.Application.Services
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Account {id} not found");
 
             await _unitOfWork.Accounts.DeleteAsync(id);
-        }
-
-        private GetAccountRes ResolveLogoUrls(GetAccountRes item)
-        {
-            item.BankLogoUrl = ResolveFileUrl(item.BankLogoUrl);
-            item.ProviderLogoUrl = ResolveFileUrl(item.ProviderLogoUrl);
-            return item;
-        }
-
-        private string? ResolveFileUrl(string? path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return path;
-            }
-
-            return _fileStorageService.GetFileUrl(path);
         }
     }
 }

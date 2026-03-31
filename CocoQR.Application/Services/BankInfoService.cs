@@ -34,11 +34,7 @@ namespace CocoQR.Application.Services
                                                                       searchValue,
                                                                       _userContext.IsAdmin());
 
-            var list = items.Select(p => BankInfoMapper.ToGetBankInfoRes(p)).ToList();
-            foreach (var item in list)
-            {
-                item.LogoUrl = ResolveFileUrl(item.LogoUrl);
-            }
+            var list = items.Select(p => BankInfoMapper.ToGetBankInfoRes(p, _fileStorageService)).ToList();
 
             return new PagingVM<GetBankInfoRes>
             {
@@ -57,9 +53,7 @@ namespace CocoQR.Application.Services
             var bank = await _unitOfWork.BankInfos.GetByIdAsync(id)
                 ?? throw new ApplicationException(ErrorCode.NotFound, $"Bank {id} not found");
 
-            var result = BankInfoMapper.ToGetBankInfoRes(bank);
-            result.LogoUrl = ResolveFileUrl(result.LogoUrl);
-            return result;
+            return BankInfoMapper.ToGetBankInfoRes(bank, _fileStorageService);
         }
         public async Task PutAsync(Guid id, PutBankInfoReq req)
         {
@@ -118,16 +112,6 @@ namespace CocoQR.Application.Services
             {
                 await _fileStorageService.DeleteFileAsync(previousImageUrl);
             }
-        }
-
-        private string? ResolveFileUrl(string? path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return path;
-            }
-
-            return _fileStorageService.GetFileUrl(path);
         }
     }
 }
