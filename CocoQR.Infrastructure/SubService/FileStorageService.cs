@@ -1,13 +1,11 @@
-﻿using Amazon.S3;
-using Amazon.S3.Model;
-using Amazon.S3.Transfer;
-using CocoQR.Application.Contracts.ISubServices;
+﻿using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Domain.Constants;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using static CocoQR.Domain.Constants.FileStorage;
 using DomainException = CocoQR.Domain.Exceptions.DomainException;
 
 namespace CocoQR.Infrastructure.SubService
@@ -16,47 +14,66 @@ namespace CocoQR.Infrastructure.SubService
     {
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<FileStorageService> _logger;
+        private readonly ICloudStorage _cloudStorage;
+        private readonly IFileCleanupQueue _cleanupQueue;
+        private readonly string _baseUrl;
 
-        private readonly DigitalOceanSettings _settings;
-
-        private readonly IAmazonS3 _client;
         public FileStorageService(
             IWebHostEnvironment environment,
             ILogger<FileStorageService> logger,
-            IOptions<DigitalOceanSettings> options)
+            ICloudStorage cloudStorage,
+            IFileCleanupQueue cleanupQueue,
+            IConfiguration configuration)
         {
             _env = environment;
             _logger = logger;
-            _settings = options.Value;
+            _cloudStorage = cloudStorage;
+            _cleanupQueue = cleanupQueue;
+            _baseUrl = (configuration["FileUrl:BaseUrl"] ?? string.Empty).Trim().TrimEnd('/');
         }
-        private IAmazonS3 GetClient()
-        {
-            var configS3 = new AmazonS3Config
-            {
-                ServiceURL = _settings.Endpoint,
-                ForcePathStyle = true
-            };
 
-            return new AmazonS3Client(
-                _settings.AccessKey,
-                _settings.SecretKey,
-                configS3);
-        }
+        #region FUNCTIONS FOR 1 FILE ONLY
         public async Task<string> UploadFileAsync(IFormFile file, string folder)
         {
             ValidateFile(file);
 
+            var relativePath = BuildRelativePath(folder, file.FileName);
+
             try
             {
-                if (_env.IsProduction())
+                if (_env.IsDevelopment())
                 {
-                    await UploadFileToCloudAsync(file, folder);
-                    return await UploadFileToLocalAsync(file, folder);
+                    await UploadFileToLocalAsync(file, relativePath);
+                    return GetFileUrl(relativePath);
                 }
-                else
+
+                if (ShouldUseCloudStorage())
                 {
-                    return await UploadFileToLocalAsync(file, folder);
+                    await UploadFileToCloudAsync(file, relativePath);
+
+                    try
+                    {
+                        await UploadFileToLocalAsync(file, relativePath);
+                    }
+                    catch (Exception localEx)
+                    {
+                        await ProcessCleanupRequestAsync(
+                            new FileCleanupRequest
+                            {
+                                FilePath = relativePath,
+                                DeleteCloud = true,
+                                DeleteLocal = false,
+                                Attempt = 1
+                            },
+                            enqueueOnFailure: true);
+
+                        throw new DomainException(ErrorCode.InternalError, "Uploaded cloud but failed to save local file", localEx);
+                    }
+
+                    return GetFileUrl(relativePath);
                 }
+
+                throw new DomainException(ErrorCode.InternalError, "Unsupported environment for file upload");
             }
             catch (DomainException)
             {
@@ -64,14 +81,68 @@ namespace CocoQR.Infrastructure.SubService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to upload file: {FileName}", file.FileName);
-                throw new DomainException(ErrorCode.InternalError, "Failed to upload file", ex);
+                _logger.LogError(ex, "Failed to upload file");
+                throw new DomainException(ErrorCode.InternalError, "Failed to upload file");
             }
         }
+        public async Task DeleteFileAsync(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return;
 
-        /// <summary>
-        /// Uploads multiple files
-        /// </summary>
+            await ProcessCleanupRequestAsync(
+                new FileCleanupRequest
+                {
+                    FilePath = filePath,
+                    DeleteCloud = ShouldUseCloudStorage(),
+                    DeleteLocal = true,
+                    Attempt = 1
+                },
+                enqueueOnFailure: true);
+        }
+        public async Task UploadLogFileToCloudAsync(string filePath)
+        {
+            if (!ShouldUseCloudStorage())
+                return;
+
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                throw new DomainException(ErrorCode.BadRequest, "File path is required");
+            }
+
+            if (!File.Exists(filePath))
+            {
+                throw new DomainException(ErrorCode.NotFound, $"File not found: {filePath}");
+            }
+
+            try
+            {
+                var logRoot = GetLogRootPath();
+                var relativePath = NormalizePath(Path.GetRelativePath(logRoot, filePath));
+
+                if (relativePath.StartsWith("..", StringComparison.Ordinal))
+                {
+                    throw new DomainException(ErrorCode.BadRequest, $"Log file is outside configured log folder: {filePath}");
+                }
+
+                var key = BuildCloudKey($"{Folders.Logs}/{relativePath}");
+                await using var stream = File.OpenRead(filePath);
+                await _cloudStorage.UploadAsync(stream, key);
+
+                _logger.LogInformation("Log uploaded: {Key}", key);
+            }
+            catch (DomainException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new DomainException(ErrorCode.InternalError, "Failed to upload log file", ex);
+            }
+        }
+        #endregion
+       
+        #region FUNCTIONS FOR MULTIPLE FILES
         public async Task<List<string>> UploadFilesAsync(IEnumerable<IFormFile> files, string folder)
         {
             var uploadedPaths = new List<string>();
@@ -101,29 +172,6 @@ namespace CocoQR.Infrastructure.SubService
         }
 
         /// <summary>
-        /// Deletes a file from storage
-        /// </summary>
-        public async Task DeleteFileAsync(string filePath)
-        {
-            if (string.IsNullOrWhiteSpace(filePath))
-                return;
-
-            try
-            {
-                await DeleteFileLocalAsync(filePath);
-
-                if (_env.IsProduction())
-                {
-                    await DeleteFileOnCloudAsync(filePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete file: {FilePath}", filePath);
-            }
-        }
-
-        /// <summary>
         /// Deletes multiple files
         /// </summary>
         public async Task DeleteFilesAsync(IEnumerable<string> filePaths)
@@ -133,6 +181,7 @@ namespace CocoQR.Infrastructure.SubService
                 await DeleteFileAsync(filePath);
             }
         }
+        #endregion
 
         /// <summary>
         /// Checks if file exists
@@ -142,8 +191,42 @@ namespace CocoQR.Infrastructure.SubService
             if (string.IsNullOrWhiteSpace(filePath))
                 return Task.FromResult(false);
 
-            var physicalPath = GetPhysicalPath(filePath);
+            var relativePath = StripEnvironmentPrefix(GetRelativePathFromUrlOrPath(filePath));
+            var physicalPath = GetPhysicalPath(relativePath);
             return Task.FromResult(File.Exists(physicalPath));
+        }
+
+        public string GetFileUrl(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+
+            if (Uri.TryCreate(path, UriKind.Absolute, out _))
+            {
+                if (!ShouldUseCloudStorage())
+                {
+                    return path;
+                }
+
+                var relativePath = GetRelativePathFromUrlOrPath(path);
+                return string.IsNullOrWhiteSpace(relativePath)
+                    ? path
+                    : _cloudStorage.GetPublicUrl(BuildCloudKey(relativePath));
+            }
+
+            var normalizedPath = TrimToEnvironmentPrefix(path);
+
+            if (ShouldUseCloudStorage())
+            {
+                return _cloudStorage.GetPublicUrl(BuildCloudKey(normalizedPath));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_baseUrl))
+            {
+                return BuildUrl(_baseUrl, StripEnvironmentPrefix(normalizedPath));
+            }
+
+            return NormalizePath(StripEnvironmentPrefix(normalizedPath));
         }
 
         /// <summary>
@@ -156,7 +239,8 @@ namespace CocoQR.Infrastructure.SubService
                 throw new DomainException(ErrorCode.BadRequest, "File path is required");
             }
 
-            var physicalPath = GetPhysicalPath(filePath);
+            var relativePath = StripEnvironmentPrefix(GetRelativePathFromUrlOrPath(filePath));
+            var physicalPath = GetPhysicalPath(relativePath);
 
             if (!File.Exists(physicalPath))
             {
@@ -175,14 +259,67 @@ namespace CocoQR.Infrastructure.SubService
             if (string.IsNullOrWhiteSpace(filePath))
                 return string.Empty;
 
-            // Remove leading slash if present
-            filePath = filePath.TrimStart('/');
+            filePath = NormalizePath(filePath);
 
-            // Combine with WebRootPath
-            return Path.Combine(_env.WebRootPath, filePath);
+            return Path.Combine(_env.WebRootPath, filePath.Replace('/', Path.DirectorySeparatorChar));
         }
 
-        #region
+        #region HELPERS
+        internal async Task<FileCleanupRequest?> ProcessCleanupRequestAsync(
+            FileCleanupRequest request,
+            bool enqueueOnFailure,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.FilePath))
+                return null;
+
+            var normalizedPath = GetRelativePathFromUrlOrPath(request.FilePath);
+            if (string.IsNullOrWhiteSpace(normalizedPath))
+                return null;
+
+            var cloudDeleted = !request.DeleteCloud || !ShouldUseCloudStorage();
+            var localDeleted = !request.DeleteLocal;
+
+            if (request.DeleteCloud && ShouldUseCloudStorage())
+            {
+                var key = BuildCloudKey(normalizedPath);
+                cloudDeleted = await TryDeleteFileOnCloudAsync(key, request.FilePath, cancellationToken);
+            }
+
+            if (request.DeleteLocal)
+            {
+                var localPath = StripEnvironmentPrefix(normalizedPath);
+                localDeleted = TryDeleteFileLocal(localPath);
+            }
+
+            if (cloudDeleted && localDeleted)
+            {
+                return null;
+            }
+
+            var retryRequest = new FileCleanupRequest
+            {
+                FilePath = normalizedPath,
+                DeleteCloud = !cloudDeleted && request.DeleteCloud,
+                DeleteLocal = !localDeleted && request.DeleteLocal,
+                Attempt = request.Attempt + 1
+            };
+
+            _logger.LogWarning(
+                "File cleanup incomplete. File: {FilePath}, RetryCloud: {RetryCloud}, RetryLocal: {RetryLocal}, Attempt: {Attempt}",
+                retryRequest.FilePath,
+                retryRequest.DeleteCloud,
+                retryRequest.DeleteLocal,
+                retryRequest.Attempt);
+
+            if (enqueueOnFailure)
+            {
+                await _cleanupQueue.EnqueueAsync(retryRequest, cancellationToken);
+            }
+
+            return retryRequest;
+        }
+
         private static void ValidateFile(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -202,17 +339,11 @@ namespace CocoQR.Infrastructure.SubService
             }
         }
 
-        private async Task<string> UploadFileToLocalAsync(IFormFile file, string folder)
+        private async Task<string> UploadFileToLocalAsync(IFormFile file, string relativePath)
         {
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
+            var physicalPath = Path.Combine(_env.WebRootPath, relativePath);
 
-            var uploadPath = Path.Combine(_env.WebRootPath, folder);
-            var relativePath = $"{folder}/{uniqueFileName}";
-
-            Directory.CreateDirectory(uploadPath);
-
-            var physicalPath = Path.Combine(uploadPath, uniqueFileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(physicalPath)!);
 
             await using (var stream = new FileStream(physicalPath,
                                                      FileMode.CreateNew,
@@ -222,79 +353,65 @@ namespace CocoQR.Infrastructure.SubService
                 await file.CopyToAsync(stream);
             }
 
-            _logger.LogInformation("File uploaded successfully to local: {FileName} -> {RelativePath}",
-                                   file.FileName,
-                                   relativePath);
+            _logger.LogInformation("Uploaded local: {Path}", relativePath);
 
             return relativePath;
         }
 
-        private async Task<string> UploadFileToCloudAsync(IFormFile file, string folder)
+        private async Task UploadFileToCloudAsync(IFormFile file, string relativePath)
         {
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-
             using var stream = file.OpenReadStream();
 
-            var uploadRequest = new TransferUtilityUploadRequest
-            {
-                InputStream = stream,
-                Key = $"{folder}/{fileName}",
-                BucketName = $"{_settings.Bucket}",
-                CannedACL = S3CannedACL.PublicRead
-            };
+            var key = BuildCloudKey(relativePath);
 
-            var client = GetClient();
-            var transferUtility = new TransferUtility(client);
-            await transferUtility.UploadAsync(uploadRequest);
+            await _cloudStorage.UploadAsync(stream, key);
 
-            var fileUrl = $"{_settings.Endpoint}/{folder}/{fileName}";
-            _logger.LogInformation("File uploaded successfully to cloud: {FileName} -> {FileUrl}", file.FileName, fileUrl);
-
-            return fileUrl;
+            var url = _cloudStorage.GetPublicUrl(key);
+            _logger.LogInformation("Uploaded cloud: {Url}", url);
         }
 
-        private Task DeleteFileLocalAsync(string filePath)
+        private bool TryDeleteFileLocal(string relativePath)
         {
-            var relativePath = GetRelativePathFromUrlOrPath(filePath);
             var physicalPath = GetPhysicalPath(relativePath);
-
-            if (File.Exists(physicalPath))
-            {
-                File.Delete(physicalPath);
-                _logger.LogInformation("Local file deleted: {FilePath}", relativePath);
-            }
-            else
-            {
-                _logger.LogWarning("Local file not found for deletion: {FilePath}", relativePath);
-            }
-
-            return Task.CompletedTask;
-        }
-
-        private async Task DeleteFileOnCloudAsync(string fileUrlOrPath)
-        {
-            if (string.IsNullOrWhiteSpace(fileUrlOrPath))
-                return;
 
             try
             {
-                var key = GetRelativePathFromUrlOrPath(fileUrlOrPath);
-                if (string.IsNullOrWhiteSpace(key))
-                    return;
-
-                var request = new DeleteObjectRequest
+                if (File.Exists(physicalPath))
                 {
-                    BucketName = _settings.Bucket,
-                    Key = key
-                };
+                    File.Delete(physicalPath);
+                    _logger.LogInformation("Local file deleted: {FilePath}", relativePath);
+                }
+                else
+                {
+                    _logger.LogInformation("Local file already removed: {FilePath}", relativePath);
+                }
 
-                await _client.DeleteObjectAsync(request);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete local file: {FilePath}", relativePath);
+                return false;
+            }
+        }
 
-                _logger.LogInformation("Cloud file deleted: {FilePath}", fileUrlOrPath);
+        private async Task<bool> TryDeleteFileOnCloudAsync(string key, string fileUrlOrPath, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return true;
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _cloudStorage.DeleteAsync(key);
+
+                _logger.LogInformation("Cloud file deleted: {Key}", key);
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to delete cloud file: {FilePath}", fileUrlOrPath);
+                return false;
             }
         }
 
@@ -305,27 +422,101 @@ namespace CocoQR.Infrastructure.SubService
 
             if (Uri.TryCreate(fileUrlOrPath, UriKind.Absolute, out var uri))
             {
-                var path = uri.AbsolutePath.TrimStart('/');
-                var bucketPrefix = $"{_settings.Bucket}/";
-
-                if (path.StartsWith(bucketPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    path = path[bucketPrefix.Length..];
-                }
-
-                return path;
+                return TrimToEnvironmentPrefix(uri.AbsolutePath);
             }
 
-            return fileUrlOrPath.TrimStart('/');
+            return TrimToEnvironmentPrefix(fileUrlOrPath);
         }
 
-        /// <summary>
-        /// Validates file extension
-        /// </summary>
         private static bool IsAllowedExtension(string extension)
         {
             return FileStorage.AllowedImageExtensions.Contains(extension)
                 || FileStorage.AllowedDocumentExtensions.Contains(extension);
+        }
+
+        private bool ShouldUseCloudStorage()
+        {
+            return _env.IsStaging() || _env.IsProduction();
+        }
+
+        private string BuildCloudKey(string path)
+        {
+            var normalized = TrimToEnvironmentPrefix(path);
+            var envPrefix = GetEnvironmentPrefix();
+
+            if (normalized.StartsWith(envPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalized;
+            }
+
+            return $"{envPrefix}{normalized}";
+        }
+
+        private string StripEnvironmentPrefix(string path)
+        {
+            var normalized = NormalizePath(path);
+            var envPrefix = GetEnvironmentPrefix();
+
+            if (normalized.StartsWith(envPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalized[envPrefix.Length..];
+            }
+
+            return normalized;
+        }
+
+        private string GetEnvironmentPrefix()
+        {
+            return $"{_env.EnvironmentName.ToLowerInvariant()}/";
+        }
+
+        private string TrimToEnvironmentPrefix(string path)
+        {
+            var normalized = NormalizePath(path);
+            var envPrefix = GetEnvironmentPrefix();
+            var envPrefixIndex = normalized.IndexOf(envPrefix, StringComparison.OrdinalIgnoreCase);
+
+            if (envPrefixIndex > 0)
+            {
+                return normalized[envPrefixIndex..];
+            }
+
+            return normalized;
+        }
+
+        private static string BuildRelativePath(string folder, string originalFileName)
+        {
+            var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+            var fileName = $"{Guid.NewGuid():N}{extension}";
+            return $"{NormalizePath(folder)}/{fileName}";
+        }
+
+        private static string BuildUrl(string endpoint, string path)
+        {
+            return $"{endpoint.TrimEnd('/')}/{NormalizePath(path)}";
+        }
+
+        private static string NormalizePath(string path)
+        {
+            return path
+                .Replace('\\', '/')
+                .TrimStart('/');
+        }
+
+        private string GetLogRootPath()
+        {
+            var configuredLogPath = Environment.GetEnvironmentVariable(EnvKeys.Logs);
+            if (!string.IsNullOrWhiteSpace(configuredLogPath))
+            {
+                if (Path.IsPathRooted(configuredLogPath))
+                {
+                    return Path.GetFullPath(configuredLogPath);
+                }
+
+                return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredLogPath));
+            }
+
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, Folders.Logs));
         }
         #endregion
     }

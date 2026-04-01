@@ -17,12 +17,14 @@ namespace CocoQR.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserContext _userContext;
         private readonly IIdGenerator _idGenerator;
+        private readonly IFileStorageService _fileStorageService;
 
-        public AccountService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator)
+        public AccountService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator, IFileStorageService fileStorageService)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _userContext = userContext;
             _idGenerator = idGenerator;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<PagingVM<GetAccountRes>> GetAllAsync(int pageNumber, int pageSize,
@@ -59,11 +61,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                list = items.Select(p => AccountMapper.ToGetAccountByAdminRes(p)).ToList();
+                list = items.Select(p => AccountMapper.ToGetAccountByAdminRes(p, _fileStorageService)).ToList();
             }
             else if (_userContext.IsUser())
             {
-                list = items.Select(p => AccountMapper.ToGetAccountRes(p)).ToList();
+                list = items.Select(p => AccountMapper.ToGetAccountRes(p, _fileStorageService)).ToList();
             }
             else
             {
@@ -91,11 +93,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                return AccountMapper.ToGetAccountByAdminRes(account);
+                return AccountMapper.ToGetAccountByAdminRes(account, _fileStorageService);
             }
             else if (_userContext.IsUser())
             {
-                return AccountMapper.ToGetAccountRes(account);
+                return AccountMapper.ToGetAccountRes(account, _fileStorageService);
             }
             else
             {

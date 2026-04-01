@@ -1,4 +1,5 @@
 ﻿using Serilog;
+using Serilog.Events;
 using System.Text;
 using static CocoQR.Domain.Constants.FileStorage;
 
@@ -22,28 +23,65 @@ namespace CocoQR.API.Extensions
                 Console.OutputEncoding = Encoding.UTF8;
                 return builder;
             }
-            else
-            {
-                var basePath = AppContext.BaseDirectory;
-                var logPath = Environment.GetEnvironmentVariable(EnvKeys.Logs) ?? "logs";
 
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Warning()
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console()
+            var logFolder = ResolveLogFolder();
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Info));
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Warning));
+            Directory.CreateDirectory(Path.Combine(logFolder, Folders.Error));
+
+            var loggerConfig = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .WriteTo.Console();
+
+            if (env.IsStaging() || env.IsProduction())
+            {
+                loggerConfig
+                .MinimumLevel.Information()
+
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Information)
                     .WriteTo.File(
-                        Path.Combine(basePath, logPath, "log-.txt"),
+                        Path.Combine(logFolder, Folders.Info, "info-.txt"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 7,
-                        encoding: Encoding.UTF8,
-                        outputTemplate:
-                        "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
-                    )
-                    .CreateLogger();
+                        encoding: Encoding.UTF8))
 
-                builder.Host.UseSerilog();
-                return builder;
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Warning)
+                    .WriteTo.File(
+                        Path.Combine(logFolder, Folders.Warning, "warning-.txt"),
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 7,
+                        encoding: Encoding.UTF8))
+
+                .WriteTo.Logger(lc => lc
+                    .Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
+                    .WriteTo.File(
+                        Path.Combine(logFolder, Folders.Error, "error-.txt"),
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 7,
+                        encoding: Encoding.UTF8));
             }
+
+            Log.Logger = loggerConfig.CreateLogger();
+            builder.Host.UseSerilog(Log.Logger, dispose: true);
+            return builder;
+        }
+
+        private static string ResolveLogFolder()
+        {
+            var configuredLogPath = Environment.GetEnvironmentVariable(EnvKeys.Logs);
+            if (!string.IsNullOrWhiteSpace(configuredLogPath))
+            {
+                if (Path.IsPathRooted(configuredLogPath))
+                {
+                    return Path.GetFullPath(configuredLogPath);
+                }
+
+                return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredLogPath));
+            }
+
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, Folders.Logs));
         }
     }
 }

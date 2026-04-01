@@ -1,12 +1,13 @@
 ﻿using CocoQR.Application.DTOs.QR.Queries;
 using CocoQR.Application.DTOs.QR.Responses;
+using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Domain.Constants.Enum;
 
 namespace CocoQR.Application.Common.Mapper
 {
     public class QrMapper
     {
-        public static GetQrRes ToGetQrHistoryRes(QrHistoryQueryDto q)
+        public static GetQrRes ToGetQrHistoryRes(QrHistoryQueryDto q, IFileStorageService? fileStorageService = null)
         {
             return new GetQrRes
             {
@@ -26,7 +27,7 @@ namespace CocoQR.Application.Common.Mapper
                 ProviderId = q.ProviderId,
                 ProviderCode = q.ProviderCode,
                 ProviderName = q.ProviderName ?? null,
-                ProviderLogoUrl = q.ProviderLogoUrl ?? null,
+                ProviderLogoUrl = BaseMapper.ResolveFileUrl(q.ProviderLogoUrl, fileStorageService),
 
                 Amount = q.Amount ?? null,
                 Currency = q.Currency ?? null,
@@ -40,7 +41,7 @@ namespace CocoQR.Application.Common.Mapper
                 CreatedAt = q.CreatedAt ?? null,
             };
         }
-        public static GetQrRes ToGetQrHistoryByAdminRes(QrHistoryQueryDto q)
+        public static GetQrRes ToGetQrHistoryByAdminRes(QrHistoryQueryDto q, IFileStorageService? fileStorageService = null)
         {
             return new GetQrRes
             {
@@ -61,7 +62,7 @@ namespace CocoQR.Application.Common.Mapper
                 ProviderId = q.ProviderId,
                 ProviderCode = q.ProviderCode,
                 ProviderName = q.ProviderName ?? null,
-                ProviderLogoUrl = q.ProviderLogoUrl ?? null,
+                ProviderLogoUrl = BaseMapper.ResolveFileUrl(q.ProviderLogoUrl, fileStorageService),
 
                 Amount = q.Amount ?? null,
                 Currency = q.Currency ?? null,

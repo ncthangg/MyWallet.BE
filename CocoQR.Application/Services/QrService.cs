@@ -1,6 +1,7 @@
 ﻿using CocoQR.Application.Common.Mapper;
 using CocoQR.Application.Contracts.IContext;
 using CocoQR.Application.Contracts.IServices;
+using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Application.Contracts.IUnitOfWork;
 using CocoQR.Application.DTOs.Base.BaseRes;
 using CocoQR.Application.DTOs.QR.Requests;
@@ -19,15 +20,18 @@ namespace CocoQR.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserContext _userContext;
+        private readonly IFileStorageService _fileStorageService;
 
         private readonly IQrPayloadEngine _qrEngine;
 
         public QrService(IUnitOfWork unitOfWork, IUserContext userContext,
+                    IFileStorageService fileStorageService,
                     IQrPayloadEngine qrEngine,
                     IQrImageRenderer qrImageRenderer)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _userContext = userContext;
+            _fileStorageService = fileStorageService;
 
             _qrEngine = qrEngine;
         }
@@ -80,11 +84,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                list = items.Select(p => QrMapper.ToGetQrHistoryByAdminRes(p)).ToList();
+                list = items.Select(p => QrMapper.ToGetQrHistoryByAdminRes(p, _fileStorageService)).ToList();
             }
             else if (_userContext.IsUser())
             {
-                list = items.Select(p => QrMapper.ToGetQrHistoryRes(p)).ToList();
+                list = items.Select(p => QrMapper.ToGetQrHistoryRes(p, _fileStorageService)).ToList();
             }
             else
             {
@@ -112,11 +116,11 @@ namespace CocoQR.Application.Services
 
             if (_userContext.IsAdmin())
             {
-                return QrMapper.ToGetQrHistoryByAdminRes(account);
+                return QrMapper.ToGetQrHistoryByAdminRes(account, _fileStorageService);
             }
             else if (_userContext.IsUser())
             {
-                return QrMapper.ToGetQrHistoryRes(account);
+                return QrMapper.ToGetQrHistoryRes(account, _fileStorageService);
             }
             else
             {
