@@ -21,11 +21,22 @@ namespace CocoQR.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] GetContactByAdminReq req)
         {
-            var result = await _contactService.GetAllAsync();
+            var result = await _contactService.GetAllAsync(
+                req.PageNumber,
+                req.PageSize,
+                req.SortField,
+                req.SortDirection,
+                null,
+                null,
+                null,
+                null,
+                req.ContactStatus,
+                req.FromDate,
+                req.ToDate);
 
-            return Ok(new BaseResponseModel<IEnumerable<GetContactMessageRes>>(
+            return Ok(new BaseResponseModel<PagingVM<GetContactMessageRes>>(
                 code: SuccessCode.Success,
                 data: result,
                 message: null));
@@ -51,6 +62,17 @@ namespace CocoQR.API.Controllers
                 code: SuccessCode.Success,
                 data: null,
                 message: "Gửi liên hệ thành công"));
+        }
+
+        [HttpPatch("{id:guid}/ignore")]
+        public async Task<IActionResult> Ignore([FromRoute] Guid id)
+        {
+            await _contactService.IgnoreContactMessageAsync(id);
+
+            return Ok(new BaseResponseModel<string>(
+                code: SuccessCode.Success,
+                data: null,
+                message: "Đã bỏ qua liên hệ"));
         }
     }
 }

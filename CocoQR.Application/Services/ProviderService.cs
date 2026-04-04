@@ -16,14 +16,12 @@ namespace CocoQR.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserContext _userContext;
-        private readonly IIdGenerator _idGenerator;
         private readonly IFileStorageService _fileStorageService;
 
-        public ProviderService(IUnitOfWork unitOfWork, IUserContext userContext, IIdGenerator idGenerator, IFileStorageService fileStorageService)
+        public ProviderService(IUnitOfWork unitOfWork, IUserContext userContext, IFileStorageService fileStorageService)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _userContext = userContext;
-            _idGenerator = idGenerator;
             _fileStorageService = fileStorageService;
         }
         public async Task<IEnumerable<GetProviderRes>> GetAllAsync()

@@ -55,13 +55,7 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
         SELECT COUNT(1)
         FROM BankInfos
         WHERE 
-            (@IsActive IS NULL OR IsActive = @IsActive)
-            AND (
-                @SearchValue IS NULL 
-                OR BankName LIKE '%' + @SearchValue + '%'
-                OR ShortName LIKE '%' + @SearchValue + '%'
-                OR BankCode LIKE '%' + @SearchValue + '%'
-            );
+            (@IsActive IS NULL OR IsActive = @IsActive);
         ";
             }
             else
@@ -87,13 +81,7 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
         FROM BankInfos
         WHERE 
             DeletedAt IS NULL
-            AND Status = 1
-            AND (
-                @SearchValue IS NULL 
-                OR BankName LIKE '%' + @SearchValue + '%'
-                OR ShortName LIKE '%' + @SearchValue + '%'
-                OR BankCode LIKE '%' + @SearchValue + '%'
-            );
+            AND Status = 1;
         ";
             }
 

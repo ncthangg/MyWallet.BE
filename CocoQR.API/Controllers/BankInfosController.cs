@@ -18,9 +18,15 @@ namespace CocoQR.API.Controllers
             _bankInfoService = bankInfoService;
         }
         [HttpGet]
-        public async Task<IActionResult> Get(int pageNumber = 1, int pageSize = 10, string? sortField = null, string? sortDirection = null, bool? isActive = null, string? searchValue = null)
+        public async Task<IActionResult> Get([FromQuery] GetBankInfoReq req)
         {
-            PagingVM<GetBankInfoRes> result = await _bankInfoService.GetsAsync(pageNumber, pageSize, sortField, sortDirection, isActive, searchValue);
+            PagingVM<GetBankInfoRes> result = await _bankInfoService.GetsAsync(
+                req.PageNumber,
+                req.PageSize,
+                req.SortField,
+                req.SortDirection,
+                req.IsActive,
+                req.SearchValue);
 
             return Ok(new BaseResponseModel<PagingVM<GetBankInfoRes>>(
                 code: SuccessCode.Success,

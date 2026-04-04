@@ -106,8 +106,8 @@ namespace CocoQR.Infrastructure.Persistence.Seeder
                 try
                 {
                     var filePath = Path.Combine(_env.ContentRootPath,
-                                                "Seed",
-                                                "Details",
+                                            FileStorage.Folders.Seed,
+                                            FileStorage.Folders.Data,
                                                 "providers_v1.json");
 
                     if (!File.Exists(filePath))
@@ -183,7 +183,10 @@ namespace CocoQR.Infrastructure.Persistence.Seeder
         // ── Helpers ────────────────────────────────────────────────
         private async Task<(string filePath, List<PostProviderJsonReq>)> ReadSeedFileAsync()
         {
-            var filePath = Path.Combine(_env.ContentRootPath, "Seed", "Details", "providers_v1.json");
+            var filePath = Path.Combine(_env.ContentRootPath,
+                                    FileStorage.Folders.Seed,
+                                    FileStorage.Folders.Data,
+                                        "providers_v1.json");
 
             if (!File.Exists(filePath))
                 throw new DomainException(ErrorCode.NotFound, $"Seed file not found: {filePath}");

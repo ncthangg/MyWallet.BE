@@ -99,6 +99,9 @@
         };
         public static class Folders
         {
+            public const string Seed = "Seed";
+            public const string Data = "Data";
+
             public const string Assets = "assets";
             public const string Providers = "providers";
             public const string Banks = "banks";

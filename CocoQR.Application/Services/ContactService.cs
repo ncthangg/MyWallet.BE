@@ -3,6 +3,7 @@ using CocoQR.Application.Contracts.IServices;
 using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Application.Contracts.IUnitOfWork;
 using CocoQR.Application.Common.Mapper;
+using CocoQR.Application.DTOs.Base.BaseRes;
 using CocoQR.Application.DTOs.Contacts.Requests;
 using CocoQR.Application.DTOs.Contacts.Responses;
 using CocoQR.Domain.Constants;
@@ -149,13 +150,57 @@ namespace CocoQR.Application.Services
             }
         }
 
-        public async Task<IEnumerable<GetContactMessageRes>> GetAllAsync()
+        public async Task<PagingVM<GetContactMessageRes>> GetAllAsync(
+            int pageNumber,
+            int pageSize,
+            string? sortField,
+            string? sortDirection,
+            Guid? userId,
+            Guid? providerId,
+            string? searchValue,
+            bool? isActive,
+            ContactMessageStatus? contactStatus,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
             EnsureAdmin();
 
-            var messages = await _unitOfWork.ContactMessages.GetAllForAdminAsync();
+            if (fromDate.HasValue && toDate.HasValue && fromDate.Value > toDate.Value)
+            {
+                throw new ArgumentException("FromDate phải nhỏ hơn hoặc bằng ToDate.");
+            }
 
-            return messages.Select(ContactMapper.ToResponse).ToList();
+            if (pageNumber <= 0)
+            {
+                pageNumber = 1;
+            }
+
+            if (pageSize <= 0)
+            {
+                pageSize = 10;
+            }
+
+            var (items, totalCount) = await _unitOfWork.ContactMessages.GetPagedForAdminAsync(
+                pageNumber,
+                pageSize,
+                sortField,
+                sortDirection,
+                userId,
+                providerId,
+                searchValue,
+                isActive,
+                contactStatus,
+                fromDate,
+                toDate);
+
+            return new PagingVM<GetContactMessageRes>
+            {
+                List = items.Select(ContactMapper.ToResponse).ToList(),
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalItems = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
         }
 
         public async Task<GetContactMessageRes> GetByIdAsync(Guid id)
@@ -185,15 +230,58 @@ namespace CocoQR.Application.Services
                     ErrorCode.NotFound,
                     string.Format(ErrorMessages.SmtpSettingByTypeNotFound, selectedSmtpType));
 
-            var rendered = await ResolveAdminTemplateOrDefaultAsync(request);
+            var subject = request.Subject.Trim();
+            var body = string.IsNullOrWhiteSpace(request.HtmlBody)
+                ? request.Content.Trim()
+                : request.HtmlBody;
 
             await _emailService.SendAsync(
                 request.Email.Trim(),
-                rendered.Subject,
-                rendered.Body,
+                subject,
+                body,
                 smtpSetting,
                 EmailDirection.OUTGOING,
                 request.TemplateKey);
+
+            if (request.ContactMessageId.HasValue && request.ContactMessageId.Value != Guid.Empty)
+            {
+                var message = await _unitOfWork.ContactMessages.GetByIdForAdminAsync(request.ContactMessageId.Value)
+                    ?? throw new ApplicationException(ErrorCode.NotFound, ErrorMessages.ContactNotFound);
+
+                if (message.Status != ContactMessageStatus.NEW)
+                {
+                    throw new ApplicationException(
+                        ErrorCode.BadRequest,
+                        "Chỉ có thể phản hồi liên hệ đang ở trạng thái NEW.");
+                }
+
+                message.Status = ContactMessageStatus.REPLIED;
+                message.RepliedAt = DateTime.UtcNow;
+                await _unitOfWork.ContactMessages.UpdateAsync(message);
+            }
+        }
+
+        public async Task IgnoreContactMessageAsync(Guid contactMessageId)
+        {
+            EnsureAdmin();
+
+            if (contactMessageId == Guid.Empty)
+            {
+                throw new ArgumentException("Id liên hệ không hợp lệ.", nameof(contactMessageId));
+            }
+
+            var message = await _unitOfWork.ContactMessages.GetByIdForAdminAsync(contactMessageId)
+                ?? throw new ApplicationException(ErrorCode.NotFound, ErrorMessages.ContactNotFound);
+
+            if (message.Status != ContactMessageStatus.NEW)
+            {
+                throw new ApplicationException(
+                    ErrorCode.BadRequest,
+                    "Chỉ có thể bỏ qua liên hệ đang ở trạng thái NEW.");
+            }
+
+            message.Status = ContactMessageStatus.IGNORED;
+            await _unitOfWork.ContactMessages.UpdateAsync(message);
         }
 
         private void EnsureAdmin()
@@ -201,50 +289,6 @@ namespace CocoQR.Application.Services
             if (!_userContext.IsAdmin())
             {
                 throw new ApplicationException(ErrorCode.Unauthorized, ErrorMessages.Unauthorized);
-            }
-        }
-
-        private static string BuildSystemToUserBody(AdminContactRequest request)
-        {
-            var receiverName = WebUtility.HtmlEncode(request.FullName.Trim());
-            var content = string.IsNullOrWhiteSpace(request.HtmlBody)
-                ? request.Content.Trim()
-                : request.HtmlBody;
-            var encodedContent = WebUtility.HtmlEncode(content)
-                .Replace("\r\n", "<br/>")
-                .Replace("\n", "<br/>");
-
-            return $"<p>Xin chào {receiverName},</p><p>{encodedContent}</p>";
-        }
-
-        private async Task<(string Subject, string Body)> ResolveAdminTemplateOrDefaultAsync(AdminContactRequest request)
-        {
-            var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["FullName"] = request.FullName.Trim(),
-                ["Email"] = request.Email.Trim(),
-                ["Subject"] = request.Subject.Trim(),
-                ["Content"] = request.Content.Trim(),
-                ["Body"] = request.Content.Trim()
-            };
-
-            try
-            {
-                var rendered = await _emailTemplateService.RenderAsync(request.TemplateKey.Trim(), variables);
-                if (!string.IsNullOrWhiteSpace(request.HtmlBody))
-                {
-                    return (rendered.Subject, request.HtmlBody);
-                }
-
-                return rendered;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "Failed to render email template {TemplateKey}. Fallback to default content for admin flow.",
-                    request.TemplateKey);
-
-                return (request.Subject.Trim(), BuildSystemToUserBody(request));
             }
         }
 

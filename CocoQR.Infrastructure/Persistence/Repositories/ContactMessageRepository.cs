@@ -1,7 +1,9 @@
 using CocoQR.Application.Contracts.IRepositories;
 using CocoQR.Application.Contracts.IUnitOfWork;
+using CocoQR.Domain.Constants.Enum;
 using CocoQR.Domain.Entities;
 using CocoQR.Infrastructure.Persistence.Repositories.Base;
+using Dapper;
 
 namespace CocoQR.Infrastructure.Persistence.Repositories
 {
@@ -12,8 +14,29 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
         {
         }
 
-        public async Task<IEnumerable<ContactMessage>> GetAllForAdminAsync()
+        public async Task<(IEnumerable<ContactMessage> Items, int TotalCount)> GetPagedForAdminAsync(
+            int pageNumber,
+            int pageSize,
+            string? sortField,
+            string? sortDirection,
+            Guid? userId,
+            Guid? providerId,
+            string? searchValue,
+            bool? isActive,
+            ContactMessageStatus? contactStatus,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
+            if (pageNumber <= 0)
+            {
+                pageNumber = 1;
+            }
+
+            if (pageSize <= 0)
+            {
+                pageSize = 10;
+            }
+
             const string sql = @"
                 SELECT
                     Id,
@@ -23,10 +46,43 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
                     CreatedAt,
                     RepliedAt
                 FROM ContactMessages
+                WHERE (@ContactStatus IS NULL OR Status = @ContactStatus)
+                  AND (@FromDate IS NULL OR CreatedAt >= @FromDate)
+                  AND (@ToDateExclusive IS NULL OR CreatedAt < @ToDateExclusive)
                 ORDER BY CreatedAt DESC
+
+                OFFSET (@PageNumber - 1) * @PageSize ROWS
+                FETCH NEXT @PageSize ROWS ONLY;
+
+                SELECT COUNT(1)
+                FROM ContactMessages
+                WHERE (@ContactStatus IS NULL OR Status = @ContactStatus)
+                  AND (@FromDate IS NULL OR CreatedAt >= @FromDate)
+                  AND (@ToDateExclusive IS NULL OR CreatedAt < @ToDateExclusive)
             ";
 
-            return await QueryAsync<ContactMessage>(sql);
+            DateTime? toDateExclusive = null;
+            if (toDate.HasValue)
+            {
+                toDateExclusive = toDate.Value.Date.AddDays(1);
+            }
+
+            using var multi = await _unitOfWork.Connection.QueryMultipleAsync(
+                sql,
+                new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    ContactStatus = contactStatus.ToString(),
+                    FromDate = fromDate,
+                    ToDateExclusive = toDateExclusive
+                },
+                _unitOfWork.Transaction);
+
+            var items = await multi.ReadAsync<ContactMessage>();
+            var totalCount = await multi.ReadSingleAsync<int>();
+
+            return (items, totalCount);
         }
 
         public async Task<ContactMessage?> GetByIdForAdminAsync(Guid id)

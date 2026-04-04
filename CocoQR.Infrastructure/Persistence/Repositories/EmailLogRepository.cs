@@ -64,9 +64,6 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
                     AND (@Status IS NULL OR el.Status = @Status)
                     AND (@Direction IS NULL OR el.EmailDirection = @Direction)
                     AND (@RecipientUserId IS NULL OR u.Id = @RecipientUserId)
-                    AND (@ToEmail IS NULL OR el.ToEmail LIKE CONCAT('%', @ToEmail, '%'))
-                    AND (@RecipientFullName IS NULL OR u.FullName LIKE CONCAT('%', @RecipientFullName, '%'))
-                    AND (@Subject IS NULL OR el.Subject LIKE CONCAT('%', @Subject, '%'))
                     AND (@FromDate IS NULL OR el.CreatedAt >= @FromDate)
                     AND (@ToDateExclusive IS NULL OR el.CreatedAt < @ToDateExclusive);
             ";

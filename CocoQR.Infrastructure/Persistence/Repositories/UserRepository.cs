@@ -73,11 +73,6 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
         WHERE
             (@Status IS NULL OR u.Status = @Status)
             AND (
-                @SearchValue IS NULL
-                OR u.FullName LIKE '%' + @SearchValue + '%'
-                OR u.Email LIKE @SearchValue + '%'
-            )
-            AND (
                 @RoleId IS NULL
                 OR EXISTS (
                     SELECT 1
