@@ -27,17 +27,20 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
             DateTime? fromDate,
             DateTime? toDate)
         {
-            if (pageNumber <= 0)
+            var orderBy = "CreatedAt DESC";
+
+            if (!string.IsNullOrEmpty(sortField))
             {
-                pageNumber = 1;
+                var dir = sortDirection?.ToUpper() == "DESC" ? "DESC" : "ASC";
+
+                orderBy = sortField switch
+                {
+                    "createdAt" => $"createdAt {dir}",
+                    _ => "CreatedAt DESC"
+                };
             }
 
-            if (pageSize <= 0)
-            {
-                pageSize = 10;
-            }
-
-            const string sql = @"
+            var sql = $@"
                 SELECT
                     Id,
                     FullName,
@@ -49,7 +52,7 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
                 WHERE (@ContactStatus IS NULL OR Status = @ContactStatus)
                   AND (@FromDate IS NULL OR CreatedAt >= @FromDate)
                   AND (@ToDateExclusive IS NULL OR CreatedAt < @ToDateExclusive)
-                ORDER BY CreatedAt DESC
+                ORDER BY {orderBy}
 
                 OFFSET (@PageNumber - 1) * @PageSize ROWS
                 FETCH NEXT @PageSize ROWS ONLY;
@@ -73,7 +76,7 @@ namespace CocoQR.Infrastructure.Persistence.Repositories
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    ContactStatus = contactStatus.ToString(),
+                    ContactStatus = contactStatus?.ToString(),
                     FromDate = fromDate,
                     ToDateExclusive = toDateExclusive
                 },
