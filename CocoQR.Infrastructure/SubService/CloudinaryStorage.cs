@@ -325,7 +325,16 @@ namespace CocoQR.Infrastructure.SubService
                 return publicIdFromUrl;
             }
 
-            return NormalizePath(path).TrimEnd('/');
+            var normalizedPath = NormalizePath(path).TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(normalizedPath))
+            {
+                return string.Empty;
+            }
+
+            var extension = Path.GetExtension(normalizedPath);
+            return string.IsNullOrWhiteSpace(extension)
+                ? normalizedPath
+                : normalizedPath[..^extension.Length];
         }
 
         private static string GetAssetFolder(string path)
