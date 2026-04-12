@@ -1,4 +1,6 @@
 ﻿using CocoQR.Application.Contracts.IQueue;
+using CocoQR.Infrastructure.Redis.Cache;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -11,22 +13,38 @@ namespace CocoQR.Infrastructure.Redis.Queue
 {
     public class RedisQueueService : IQueueService
     {
-        private readonly IDatabase _db;
+        private readonly IConnectionMultiplexer _redis;
+        private readonly ILogger<RedisQueueService> _logger;
 
-        public RedisQueueService(IConnectionMultiplexer redis)
+        public RedisQueueService(IConnectionMultiplexer redis, ILogger<RedisQueueService> logger)
         {
-            _db = redis.GetDatabase();
+            _redis = redis;
+            _logger = logger;
         }
 
         public async Task EnqueueAsync<T>(string queue, T data)
         {
+            if (!_redis.IsConnected)
+            {
+                _logger.LogWarning("Redis not connected, bypass queue");
+                return;
+            }
+            var db = _redis.GetDatabase();
+
             var json = JsonSerializer.Serialize(data);
-            await _db.ListRightPushAsync(queue, json);
+            await db.ListRightPushAsync(queue, json);
         }
 
         public async Task<T?> DequeueAsync<T>(string queue)
         {
-            var value = await _db.ListLeftPopAsync(queue);
+            if (!_redis.IsConnected)
+            {
+                _logger.LogWarning("Redis not connected, bypass queue");
+                return default;
+            }
+            var db = _redis.GetDatabase();
+
+            var value = await db.ListLeftPopAsync(queue);
 
             if (value.IsNullOrEmpty)
                 return default;

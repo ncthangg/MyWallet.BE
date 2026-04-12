@@ -9,6 +9,7 @@ using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Application.Contracts.IUnitOfWork;
 using CocoQR.Domain.Constants;
 using CocoQR.Infrastructure.BackgroundServices;
+using CocoQR.Infrastructure.BackgroundServices.LogUploadJob;
 using CocoQR.Infrastructure.Configs;
 using CocoQR.Infrastructure.Persistence.MyDbContext;
 using CocoQR.Infrastructure.Persistence.Repositories;
