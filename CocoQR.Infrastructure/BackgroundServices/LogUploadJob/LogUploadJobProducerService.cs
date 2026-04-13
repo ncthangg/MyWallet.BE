@@ -1,6 +1,6 @@
 ﻿using CocoQR.Application.Contracts.IQueue;
 using CocoQR.Application.Contracts.ICache;
-using CocoQR.Application.Contracts.ISubServices;
+using CocoQR.Infrastructure.BackgroundServices.BackgroundQueueWorker;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
@@ -9,24 +9,21 @@ using static CocoQR.Domain.Constants.FileStorage;
 
 namespace CocoQR.Infrastructure.BackgroundServices.LogUploadJob
 {
-    public class LogUploadService : BackgroundService
+    public class LogUploadJobProducerService : BackgroundService
     {
         private static readonly string[] LogLevelFolders = { Folders.Info, Folders.Warning, Folders.Error };
-        private const string LogUploadQueue = "log-upload";
-        private static readonly TimeSpan ScanInterval = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan ScanInterval = TimeSpan.FromMinutes(60);
         private static readonly TimeSpan EnqueuedCacheTtl = TimeSpan.FromHours(6);
 
         private readonly IHostEnvironment _env;
-        private readonly ILogger<LogUploadService> _logger;
-        private readonly IFileStorageService _fileStorageService;
+        private readonly ILogger<LogUploadJobProducerService> _logger;
         private readonly IQueueService _queueService;
         private readonly ICacheService _cacheService;
 
-        public LogUploadService(IHostEnvironment env, ILogger<LogUploadService> logger, IFileStorageService fileStorageService, IQueueService queueService, ICacheService cacheService)
+        public LogUploadJobProducerService(IHostEnvironment env, ILogger<LogUploadJobProducerService> logger, IQueueService queueService, ICacheService cacheService)
         {
             _env = env;
             _logger = logger;
-            _fileStorageService = fileStorageService;
             _queueService = queueService;
             _cacheService = cacheService;
         }
@@ -37,7 +34,7 @@ namespace CocoQR.Infrastructure.BackgroundServices.LogUploadJob
                 return;
 
             _logger.LogInformation(
-                "LogUploadService started in {Environment} at {UtcNow}. Log folder: {LogFolder}",
+                "LogUploadJobProducerService started in {Environment} at {UtcNow}. Log folder: {LogFolder}",
                 _env.EnvironmentName,   
                 DateTime.UtcNow,
                 GetLogFolder());
@@ -56,78 +53,12 @@ namespace CocoQR.Infrastructure.BackgroundServices.LogUploadJob
                         nextScanAt = DateTime.UtcNow.Add(ScanInterval);
                     }
 
-                    var job = await _queueService.DequeueAsync<LogUploadJob>(LogUploadQueue);
-
-                    if (job != null)
-                    {
-                        _logger.LogInformation("[LogFlow:Dequeue] Received job for file {FilePath}", job.FilePath);
-                        await ProcessUploadJobAsync(job, stoppingToken);
-                    }
-                    else
-                    {
-                        await Task.Delay(1000, stoppingToken);
-                    }
+                    await Task.Delay(1000, stoppingToken);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing log upload queue");
+                    _logger.LogError(ex, "Error producing log upload jobs");
                 }
-            }
-        }
-
-        private async Task ProcessUploadJobAsync(LogUploadJob job, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(job.FilePath))
-            {
-                _logger.LogWarning("[LogFlow:Worker] Job has empty file path, skipped");
-                return;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogInformation("[LogFlow:Worker] Cancellation requested, stop processing file {FilePath}", job.FilePath);
-                return;
-            }
-
-            var cacheKey = GetEnqueuedCacheKey(job.FilePath);
-
-            try
-            {
-                if (!File.Exists(job.FilePath))
-                {
-                    _logger.LogWarning("[LogFlow:Worker] File not found, remove queue marker: {FilePath}", job.FilePath);
-                    await _cacheService.RemoveAsync(cacheKey);
-                    return;
-                }
-
-                try
-                {
-                    _logger.LogInformation("[LogFlow:Upload] Start upload file {FilePath}", job.FilePath);
-                    await _fileStorageService.UploadLogFileToCloudAsync(job.FilePath);
-                    _logger.LogInformation("[LogFlow:Upload] Upload success for file {FilePath}", job.FilePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to upload log file: {File}", job.FilePath);
-                    _logger.LogWarning("[LogFlow:Retry] Re-enqueue file {FilePath}", job.FilePath);
-
-                    await _queueService.EnqueueAsync(LogUploadQueue, job);
-
-                    return;
-                }
-
-                _logger.LogInformation("[LogFlow:Delete] Deleting local file {FilePath}", job.FilePath);
-                File.Delete(job.FilePath);
-                _logger.LogInformation("[LogFlow:Delete] Deleted local file {FilePath}", job.FilePath);
-
-                await _cacheService.RemoveAsync(cacheKey);
-                _logger.LogDebug("[LogFlow:Marker] Removed queued marker {CacheKey}", cacheKey);
-
-                _logger.LogInformation("Uploaded and deleted log file: {File}", job.FilePath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to upload log file: {File}", job.FilePath);
             }
         }
 
@@ -173,8 +104,8 @@ namespace CocoQR.Infrastructure.BackgroundServices.LogUploadJob
                     }
 
                     await _queueService.EnqueueAsync(
-                        LogUploadQueue,
-                        new LogUploadJob
+                        BackgroundQueueNames.Main,
+                        new UploadLogJob
                         {
                             FilePath = file
                         });

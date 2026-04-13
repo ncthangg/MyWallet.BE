@@ -8,7 +8,9 @@ using CocoQR.Application.Contracts.IRepositories;
 using CocoQR.Application.Contracts.ISubServices;
 using CocoQR.Application.Contracts.IUnitOfWork;
 using CocoQR.Domain.Constants;
-using CocoQR.Infrastructure.BackgroundServices;
+using CocoQR.Infrastructure.BackgroundServices.BackgroundQueueWorker;
+using CocoQR.Infrastructure.BackgroundServices.BackgroundQueueWorker.Handlers;
+using CocoQR.Infrastructure.BackgroundServices.FileCleanupJob;
 using CocoQR.Infrastructure.BackgroundServices.LogUploadJob;
 using CocoQR.Infrastructure.Configs;
 using CocoQR.Infrastructure.Persistence.MyDbContext;
@@ -97,6 +99,12 @@ namespace CocoQR.Infrastructure.DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddSingleton<IFileCleanupQueue, FileCleanupQueue>();
+            services.AddScoped<IBackgroundJobProducer, RedisBackgroundJobProducer>();
+
+            services.AddScoped<UploadLogHandler>();
+            services.AddScoped<CleanupHandler>();
+            services.AddScoped<UploadAssetHandler>();
+            services.AddScoped<EmailHandler>();
 
             // Default cloud provider: DigitalOcean Spaces.
             // Switch to Cloudinary by replacing this registration with:
@@ -109,10 +117,11 @@ namespace CocoQR.Infrastructure.DependencyInjection
         }
         private static void AddBackgroundServices(this IServiceCollection services, IHostEnvironment env)
         {
+            services.AddHostedService<BackgroundQueueWorker>();
             if (env.IsStaging() || env.IsProduction())
             {
-                services.AddHostedService<FileCleanupBackgroundService>();
-                services.AddHostedService<LogUploadService>();
+                services.AddHostedService<FileCleanupJobProducerService>();
+                services.AddHostedService<LogUploadJobProducerService>();
             }
         }
         private static void AddSeeder(this IServiceCollection services)
@@ -189,9 +198,9 @@ namespace CocoQR.Infrastructure.DependencyInjection
         }
         private static void AddRedisServices(this IServiceCollection services)
         {
-            services.AddScoped<ICacheService, RedisCacheService>();
-            services.AddScoped<IQueueService, RedisQueueService>();
-            services.AddScoped<IRateLimitService, RedisRateLimitService>();
+            services.AddSingleton<ICacheService, RedisCacheService>();
+            services.AddSingleton<IQueueService, RedisQueueService>();
+            services.AddSingleton<IRateLimitService, RedisRateLimitService>();
         }
 
     }

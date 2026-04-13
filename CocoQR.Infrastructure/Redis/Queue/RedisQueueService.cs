@@ -7,14 +7,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CocoQR.Infrastructure.Redis.Queue
 {
     public class RedisQueueService : IQueueService
     {
+        private static readonly TimeSpan DisconnectedWarningInterval = TimeSpan.FromSeconds(30);
+
         private readonly IConnectionMultiplexer _redis;
         private readonly ILogger<RedisQueueService> _logger;
+        private long _lastDisconnectedWarningTicks;
 
         public RedisQueueService(IConnectionMultiplexer redis, ILogger<RedisQueueService> logger)
         {
@@ -26,7 +30,7 @@ namespace CocoQR.Infrastructure.Redis.Queue
         {
             if (!_redis.IsConnected)
             {
-                _logger.LogWarning("Redis not connected, bypass queue");
+                LogDisconnectedWarning();
                 return;
             }
             var db = _redis.GetDatabase();
@@ -39,7 +43,7 @@ namespace CocoQR.Infrastructure.Redis.Queue
         {
             if (!_redis.IsConnected)
             {
-                _logger.LogWarning("Redis not connected, bypass queue");
+                LogDisconnectedWarning();
                 return default;
             }
             var db = _redis.GetDatabase();
@@ -50,6 +54,18 @@ namespace CocoQR.Infrastructure.Redis.Queue
                 return default;
 
             return JsonSerializer.Deserialize<T>(value);
+        }
+
+        private void LogDisconnectedWarning()
+        {
+            var nowTicks = DateTime.UtcNow.Ticks;
+            var lastTicks = Interlocked.Read(ref _lastDisconnectedWarningTicks);
+
+            if (nowTicks - lastTicks < DisconnectedWarningInterval.Ticks)
+                return;
+
+            Interlocked.Exchange(ref _lastDisconnectedWarningTicks, nowTicks);
+            _logger.LogWarning("Redis not connected, bypass queue");
         }
     }
 }
