@@ -105,7 +105,7 @@ namespace CocoQR.Infrastructure.BackgroundServices.BackgroundQueueWorker
             if (job == null)
                 return;
 
-            var idempotencyKey = $"bg:done:{job.JobId}";
+            var idempotencyKey = $"{GetDoneKeyPrefix(job.JobType)}:{job.JobId}";
             var done = await _cacheService.GetAsync<bool>(idempotencyKey);
             if (done)
             {
@@ -160,6 +160,18 @@ namespace CocoQR.Infrastructure.BackgroundServices.BackgroundQueueWorker
                 return null;
 
             return jobTypeElement.GetString();
+        }
+
+        private static string GetDoneKeyPrefix(string? jobType)
+        {
+            return jobType switch
+            {
+                BackgroundJobTypes.UploadAsset => "bg:done:asset",
+                BackgroundJobTypes.UploadLog => "bg:done:log",
+                BackgroundJobTypes.SendEmail => "bg:done:sendmail",
+                BackgroundJobTypes.Cleanup => "bg:done:cleanup",
+                _ => "bg:done:other"
+            };
         }
 
         private async Task TryMarkEmailLogFailedAsync<TJob>(TJob job, string errorMessage)
