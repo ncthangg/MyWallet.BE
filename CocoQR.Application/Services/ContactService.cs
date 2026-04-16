@@ -469,7 +469,7 @@ namespace CocoQR.Application.Services
             SmtpSetting smtpSetting,
             EmailDirection direction,
             string? templateKey,
-            Guid? emailLogId)
+            Guid emailLogId)
         {
             try
             {
@@ -535,12 +535,9 @@ namespace CocoQR.Application.Services
             return emailLog.Id;
         }
 
-        private async Task UpdateEmailLogStatusAsync(Guid? emailLogId, EmailLogStatus status, string? errorMessage)
+        public async Task UpdateEmailLogStatusAsync(Guid emailLogId, EmailLogStatus status, string? errorMessage)
         {
-            if (!emailLogId.HasValue)
-                return;
-
-            var emailLog = await _unitOfWork.EmailLogs.GetByIdAsync(emailLogId.Value);
+            var emailLog = await _unitOfWork.EmailLogs.GetByIdAsync(emailLogId);
             if (emailLog == null)
                 return;
 
