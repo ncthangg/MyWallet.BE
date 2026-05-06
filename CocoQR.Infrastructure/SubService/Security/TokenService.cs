@@ -11,7 +11,7 @@ using System.Security.Claims;
 using System.Text;
 using ApplicationException = CocoQR.Application.Exceptions.ApplicationException;
 
-namespace CocoQR.Infrastructure.Security
+namespace CocoQR.Infrastructure.SubService.Security
 {
     public class TokenService : ITokenService
     {

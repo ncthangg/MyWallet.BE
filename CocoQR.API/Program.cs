@@ -90,10 +90,11 @@ app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseMiddleware<SecurityStampMiddleware>();
 app.UseMiddleware<PerformanceMiddleware>();
 

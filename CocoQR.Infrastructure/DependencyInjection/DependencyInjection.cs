@@ -20,8 +20,8 @@ using CocoQR.Infrastructure.Persistence.UnitOfWork;
 using CocoQR.Infrastructure.Redis.Cache;
 using CocoQR.Infrastructure.Redis.Queue;
 using CocoQR.Infrastructure.Redis.RateLimit;
-using CocoQR.Infrastructure.Security;
 using CocoQR.Infrastructure.SubService;
+using CocoQR.Infrastructure.SubService.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,7 +85,7 @@ namespace CocoQR.Infrastructure.DependencyInjection
                     sqlOptions =>
                     {
                         sqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 5,
+                            maxRetryCount: 5,   
                             maxRetryDelay: TimeSpan.FromSeconds(10),
                             errorNumbersToAdd: null);
                     });
